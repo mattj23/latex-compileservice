@@ -2,7 +2,7 @@
 
 > _This project is currently in a proof of concept state. LaTeX tools are run as a python `subprocess` by the main Flask app and block. Sessions (uploaded sets of files to be rendered) are stored in directories inside the container and are never cleaned up after they complete._
 > 
-> _My actual goal for the project is to use Redis and a RQ message queue to offload tasks to background workers, and have the completed renderings stored only for a brief amount of time before being cleaned up._
+> _My actual goal for the project is to use Redis and a RQ task queue to offload tasks to background workers, and have the completed renderings stored only for a brief amount of time before being cleaned up._
 > 
 > _In the much longer term, I'd like to add a simple web frontend that will allow a user to manually upload or edit files and retrieve the results, like a much simpler version of Overleaf._
 
