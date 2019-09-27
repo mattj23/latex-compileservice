@@ -17,10 +17,22 @@ def render_latex(session: Session) -> RenderResult:
                f"-jobname={session.key}",
                session.target]
 
-    process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=session.directory)
-    process.wait()
+    # I'm not sure how many times a latex compiler should reasonably have to run in order to handle
+    # a complex case, so I've conservatively set it to time out at 5
+    run_count = 0
+    expected_log = None     # prevent linting ref-before-assignment warning
+    while run_count < 5:
+        # Run the compiler
+        process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=session.directory)
+        process.wait()
+        run_count += 1
 
-    expected_log = os.path.join(session.directory, f"{session.key}.log")
+        # Check the log file to determine if a re-run is necessary
+        expected_log = os.path.join(session.directory, f"{session.key}.log")
+        with open(expected_log, "r") as handle:
+            if "Rerun" not in handle.read():
+                break
+
     expected_product = os.path.join(session.directory, f"{session.key}.pdf")
 
     if os.path.exists(expected_product):
