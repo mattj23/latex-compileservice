@@ -1,0 +1,2 @@
+clear
+pytest -v tests
