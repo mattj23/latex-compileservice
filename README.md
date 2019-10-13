@@ -1,4 +1,4 @@
-# LaTeX Renderservice
+# LaTeX Compileservice
 
 > _This project is currently in a proof of concept state. LaTeX tools are run as a python `subprocess` by the main Flask app and block. Sessions (uploaded sets of files to be rendered) are stored in directories inside the container and are never cleaned up after they complete._
 > 
@@ -28,11 +28,11 @@ With the project currently in a proof-of-concept state, there isn't yet much to 
 
 ## Overview
 
-This project is a LaTeX rendering web service intended to run in a Docker container, and interacted with by other software through a REST api. It is written in Python3 and uses Flask.
+This project is a LaTeX compiling and template rendering web service intended to run in a Docker container, and interacted with by other software through a REST-like api. It is written in Python3 and uses Flask.
 
 This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full LaTeX installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
 
-This project is essentially a small Flask app built on top of an ubuntu docker image with `texlive-full` installed, inspired by `blang/latex:ubuntu` ([Github](https://github.com/blang/latex-docker), [DockerHub](https://hub.docker.com/r/blang/latex)) but derived from `ubuntu:bionic` (rather than `xenial`) for the 3.6 version of python. 
+This project is essentially a small Flask app built on top of an ubuntu docker image with `texlive-full` installed, inspired by `blang/latex:ubuntu` ([Github](https://github.com/blang/latex-docker), [DockerHub](https://hub.docker.com/r/blang/latex)) but derived from `ubuntu:bionic` (rather than `xenial`) for the considerable improvements in the 3.6 version of python. 
 
 ### Why as a service, and why Docker?
 LaTeX, though quite powerful, can be a frustrating toolset to install and maintain, especially across platforms. A comprehensive installation can be several gigabytes in size, and seems to be easily broken.  Online tools like [Overleaf](https://www.overleaf.com) ([source on GitHub](https://github.com/overleaf)) clearly show how much pain can be saved by not maintaining individual installations, but Overleaf itself is structured towards the concepts of users and projects and isn't quite a lightweight service meant to be used by other services. 

@@ -3,7 +3,7 @@ import subprocess
 from collections import namedtuple
 from session import Session
 
-COMPILERS = ['xelatex', 'pdflatex']
+COMPILERS = ['xelatex', 'pdflatex', 'lualatex']
 
 RenderResult = namedtuple('RenderResult', 'success product log')
 

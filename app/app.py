@@ -23,6 +23,32 @@ dictConfig({
 })
 app = Flask(__name__)
 
+"""
+    API for the compile service
+    
+    /api/
+        get document showing ion-like forms
+        
+    /api/sessions => POST
+        Send compiler, target, files to create session
+        Send compiler, target to create session
+        Returns link to session 
+        
+    /api/sessions/<session_key>
+        => GET 
+            gets compiler, target, status, link to files
+    
+    /api/sessions/<session_key>/source 
+        => GET 
+            gets URLs of posted files
+        => POST
+            post file to source
+        
+    /api/sessions/<session_key>/templates
+        => POST
+            post json object with {"file_text": ..., "source_path": ..., "content": ...}
+"""
+
 
 @app.route("/api/1.0/session/<session_key>", methods=['GET'])
 def get_session(session_key: str):
