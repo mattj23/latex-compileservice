@@ -1,24 +1,29 @@
-import unittest
+import pytest
 from flask import Response, Request
 from latex import create_app
 from latex.config import TestConfig
 
 
-class LatexApiTests(unittest.TestCase):
+@pytest.fixture(scope="module")
+def client():
+    app = create_app(TestConfig())
+    with app.test_client() as client:
+        with app.app_context():
+            pass # init db?
+        yield client
 
-    def setUp(self) -> None:
-        self.app = create_app(TestConfig())
-        self.client = self.app.test_client()
+    # Clean up here
+    pass
 
-    def tearDown(self) -> None:
-        pass
 
-    def test_api_root_endpoint_produces_expected(self):
-        response: Response = self.client.get("/api", follow_redirects=True)
-        self.assertTrue(response.is_json)
-        self.assertIn("create_session", response.json.keys())
+def test_api_root_endpoint_produces_expected(client):
+    response: Response = client.get("/api", follow_redirects=True)
+    assert response.is_json
+    assert type(response.json) is dict
+    assert "create_session" in response.json.keys()
 
-    def test_session_endpoint_routes_correctly(self):
-        response = self.client.get("/api/sessions", follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
+
+def test_session_endpoint_routes_correctly(client):
+    response: Response = client.get("/api/sessions", follow_redirects=True)
+    assert response.status_code == 200
 
