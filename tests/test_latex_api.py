@@ -4,7 +4,7 @@ from latex import create_app
 from latex.config import TestConfig
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
     app = create_app(TestConfig())
     with app.test_client() as client:
