@@ -35,10 +35,11 @@
     the working directory can be removed.
 
 """
-
+import json
 import os
 import uuid
 from datetime import datetime
+from redis import Redis
 
 
 def make_id():
@@ -85,16 +86,42 @@ class Session:
         os.makedirs(self.directory)
         os.makedirs(self.source_directory)
 
-    @staticmethod
-    def make_new(compiler: str, target: str, working_directory: str):
+
+class SessionManager:
+    def __init__(self, redis_client: Redis, working_directory: str, instance_key: str):
+        self.redis = redis_client
+        self.working_directory = working_directory
+        self.instance_key = instance_key
+
+    def create_session(self, compiler: str, target: str) -> Session:
+        # Create the session
         kwargs = {
             "key": make_id(),
             "created": datetime.utcnow().timestamp(),
             "compiler": compiler,
             "target": target,
             "status": "created",
-            "working_directory": working_directory
+            "working_directory": self.working_directory
         }
         session = Session(**kwargs)
+
+        # Create the folder on disk
+        session.create_directory()
+
+        # Store to the redis client
+        self.redis.append(self.instance_key, session.key)
+        self.save_session(session)
+
         return session
 
+    def save_session(self, session: Session) -> None:
+        self.redis.set(f"session:{session.key}", json.dumps(session.public))
+
+    def load_session(self, key: str) -> Session:
+        data: bytes = self.redis.get(f"session:{key}")
+        if data is None:
+            return None
+
+        kwargs = json.loads(data.decode())
+        kwargs["working_directory"] = self.working_directory
+        return Session(**kwargs)

@@ -7,7 +7,7 @@ import pytest
 import redis
 
 from latex.config import TestConfig
-from latex.session import Session
+from latex.session import Session, SessionManager
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
 
@@ -21,7 +21,7 @@ class TestFixture:
     def __init__(self, **kwargs):
         self.client: redis.Redis = kwargs.get("client", None)
         self.instance: str = kwargs.get("instance", unique_key())
-        self.path = kwargs["path"]
+        self.manager: SessionManager = kwargs.get("manager", None)
 
 
 @pytest.fixture(scope="session")
@@ -33,13 +33,17 @@ def fixture() -> TestFixture:
         raise Exception(f"could not parse url {TestConfig().REDIS_URL} into host, port, and database")
     pw, host, port, db = groups.groups()
 
+    # Create the instance key
+    instance_key = unique_key()
+
     # Create the redis client
     client = redis.Redis(host=host, port=int(port), db=int(db))
 
     # Create the working directory with a context manager so it's automatically
     # cleaned up after the test runs
     with tempfile.TemporaryDirectory() as temp_path:
-        fixture = TestFixture(client=client, path=temp_path)
+        manager = SessionManager(client, temp_path, instance_key)
+        fixture = TestFixture(client=client, manager=manager, instance=instance_key)
         yield fixture
 
     # Clean up any keys in the instance list, if it's still there
@@ -64,9 +68,13 @@ def test_redis_connection_writeable(fixture):
 
 
 def test_session_key_generated(fixture):
-    sesh = Session.make_new("pdflatex", fixture.instance, fixture.path)
+    sesh = fixture.manager.create_session("pdflatex", "latextest.tex")
     key_pattern = re.compile(r"[0-9a-f]{12}")
     assert key_pattern.findall(sesh.key)
 
 
+def test_session_saves_to_redis(fixture):
+    original = fixture.manager.create_session("pdflatex", "latextest.tex")
+    loaded = fixture.manager.load_session(original.key)
+    assert loaded.compiler == original.compiler
 
