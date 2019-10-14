@@ -1,6 +1,4 @@
 """
-
-
     A Session is a single compilation/rendering task aimed at producing a single product, created by a single client.
     The session consists of a set of input files, some of which may be unrendered Jinja2 templates, a compiler, a root
     target for the compiler, a status, a timestamp, and products.
@@ -41,50 +39,27 @@
 import os
 import uuid
 from datetime import datetime
-import json
-from typing import List
 
-working_directory = "/working"
+
+def make_id():
+    return str(uuid.uuid4()).replace("-", "")[:16]
 
 
 class Session:
-    def __init__(self, key: str, compiler: str = None, target: str = None):
-        self.key = key
-        self.directory = os.path.join(working_directory, self.key)
-        self.info_file = os.path.join(self.directory, ".info.json")
-        self.__info_dict = {
-            "status": "unknown",
-            "time": 0,
-            "compiler": compiler,
-            "target": target,
-            "product": None
-        }
 
-        self.__read_info()
-
-    @property
-    def product(self):
-        return self.__info_dict['product']
-
-    @property
-    def compiler(self):
-        return self.__info_dict['compiler']
-
-    @property
-    def target(self):
-        return self.__info_dict['target']
+    def __init__(self, **kwargs):
+        self.key: str = kwargs["key"]
+        self.compiler: str = kwargs["compiler"]
+        self.target: str = kwargs["target"]
+        self.created: int = kwargs["created"]
+        self.status: str = kwargs["status"]
+        self.working_directory: str = kwargs["working_directory"]
+        self.directory: str = os.path.join(self.working_directory, self.key)
+        self.source_directory: str = os.path.join(self.directory, "source")
 
     @property
     def exists(self):
         return os.path.exists(self.directory)
-
-    @property
-    def status(self):
-        return self.__info_dict["status"]
-
-    @property
-    def time(self):
-        return datetime.utcfromtimestamp(self.__info_dict["time"])
 
     @property
     def files(self):
@@ -92,41 +67,34 @@ class Session:
             return []
 
         all_files = []
-        for _, _, files in os.walk(self.directory):
+        for _, _, files in os.walk(self.source_directory):
             all_files += files
         return all_files
 
     @property
     def public(self):
         return {"key": self.key,
+                "created": self.created,
+                "compiler": self.compiler,
+                "target": self.target,
                 "files": self.files,
                 "exists": self.exists,
                 "status": self.status}
 
-    def set_product(self, product_name: str):
-        self.__info_dict['product'] = os.path.basename(product_name)
-        self.__write_info()
+    def create_directory(self):
+        os.makedirs(self.directory)
+        os.makedirs(self.source_directory)
 
-    def create(self):
-        os.mkdir(self.directory)
-        self.__info_dict['time'] = str(datetime.timestamp(datetime.utcnow()))
-        self.__info_dict['status'] = "created"
-        self.__write_info()
+    @staticmethod
+    def make_new(compiler: str, target: str, working_directory: str):
+        kwargs = {
+            "key": make_id(),
+            "created": datetime.utcnow().timestamp(),
+            "compiler": compiler,
+            "target": target,
+            "status": "created",
+            "working_directory": working_directory
+        }
+        session = Session(**kwargs)
+        return session
 
-    def __write_info(self):
-        with open(self.info_file, "w") as handle:
-            handle.write(json.dumps(self.__info_dict))
-
-    def __read_info(self):
-        if os.path.exists(self.info_file):
-            with open(self.info_file, "r") as handle:
-                self.__info_dict = json.loads(handle.read())
-
-
-def new_session(compiler: str, target: str) -> Session:
-    session_id = str(uuid.uuid4()).replace("-", "")
-    return Session(session_id, compiler, target)
-
-
-def get_sessions_by_workspace() -> List[str]:
-    return os.listdir(working_directory)
