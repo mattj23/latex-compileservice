@@ -1,8 +1,10 @@
 import os
 from flask import Flask
+from flask_redis import FlaskRedis
 from latex.config import ConfigBase, ProductionConfig
 
 # Globally accessible instances go here
+redis_client = FlaskRedis()
 
 
 # Application factory method
@@ -18,10 +20,7 @@ def create_app(config: ConfigBase = None) -> Flask:
     else:
         app.config.from_object(config)
 
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    redis_client.init_app(app)
 
     with app.app_context():
         from . import api_routes
