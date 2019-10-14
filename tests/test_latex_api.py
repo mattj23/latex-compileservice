@@ -27,3 +27,27 @@ def test_session_endpoint_routes_correctly(client):
     response: Response = client.get("/api/sessions", follow_redirects=True)
     assert response.status_code == 200
 
+
+def test_post_session_fails_if_not_json(client):
+    data = "text data"
+    response: Response = client.post("/api/sessions", data=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_missing_compiler(client):
+    data = {"target": "test.tex"}
+    response: Response = client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_missing_target(client):
+    data = {"compiler": "pdflatex" }
+    response: Response = client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_creates_new_session(client):
+    data = {"compiler": "pdflatex", "target": "test.tex"}
+    response: Response = client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 201
+
