@@ -52,10 +52,7 @@ def fixture() -> TestFixture:
 
 
 def test_redis_connection_writeable(fixture):
-    """
-    Tests whether the Redis connection is working and using a unique instance
-    :param fixture:
-    """
+    """ Tests whether the Redis connection is working and using a unique instance """
     initial_read = fixture.client.get(fixture.instance)
     fixture.client.set(fixture.instance, "test value here")
     test_read = fixture.client.get(fixture.instance)
@@ -68,13 +65,42 @@ def test_redis_connection_writeable(fixture):
 
 
 def test_session_key_generated(fixture):
+    """ Tests whether the session key contains at least twelve hexadecimal digits """
     sesh = fixture.manager.create_session("pdflatex", "latextest.tex")
     key_pattern = re.compile(r"[0-9a-f]{12}")
     assert key_pattern.findall(sesh.key)
 
 
 def test_session_saves_to_redis(fixture):
+    """ Tests that the session manager is correctly saving a session to the redis store, and
+    that the data can be retrieved """
     original = fixture.manager.create_session("pdflatex", "latextest.tex")
     loaded = fixture.manager.load_session(original.key)
     assert loaded.compiler == original.compiler
+
+
+def test_session_saved_added_to_instance_list(fixture):
+    """ Tests that when a session is created, the instance list of sessions now contains
+    the new session. Verify that this works with multiple sessions. """
+    assert False
+
+
+def test_session_file_saves_to_disk(fixture):
+    """ Tests that when a file is added to the session it is saved correctly to the source/
+    directory in the working folder (verifies by checksum) """
+    assert False
+
+
+def test_session_deleted_is_gone_from_redis_and_disk(fixture):
+    """ Tests that when a session is deleted, its record is no longer accessible via redis
+    and its working directory is removed from the disk"""
+    assert False
+
+
+def test_session_deleted_is_gone_from_instance_list(fixture):
+    """ Tests that when a session is deleted its record is no longer present in the
+    instance list """
+    assert False
+
+
 
