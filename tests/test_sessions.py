@@ -1,8 +1,9 @@
 import os
+import shutil
 import tempfile
 import re
 import uuid
-
+import hashlib
 import pytest
 import redis
 
@@ -10,6 +11,19 @@ from latex.config import TestConfig
 from latex.session import Session, SessionManager
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
+
+
+def find_test_asset_folder() -> str:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(script_dir, "test_files")
+
+
+def hash_file(path: str) -> str:
+    sha = hashlib.sha1()
+    with open(path, "rb") as handle:
+        data = handle.read()
+        sha.update(data)
+    return sha.hexdigest()
 
 
 def unique_key() -> str:
@@ -92,7 +106,18 @@ def test_session_saved_added_to_instance_list(fixture):
 def test_session_file_saves_to_disk(fixture):
     """ Tests that when a file is added to the session it is saved correctly to the source/
     directory in the working folder (verifies by checksum) """
-    assert False
+    source_path = os.path.join(find_test_asset_folder(), "sample1.tex")
+    if not os.path.exists(source_path):
+        raise Exception(f"Sample file '{source_path}' not found")
+
+    original_hash = hash_file(source_path)
+
+    session = fixture.manager.create_session("pdflatex", "sample1.tex")
+    destination = session.get_source_path_for("sample1.tex")
+    shutil.copy(source_path, destination)
+
+    copied_hash = hash_file(destination)
+    assert original_hash == copied_hash
 
 
 def test_session_deleted_is_gone_from_redis_and_disk(fixture):

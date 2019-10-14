@@ -82,6 +82,10 @@ class Session:
                 "exists": self.exists,
                 "status": self.status}
 
+    def get_source_path_for(self, rel_path: str) -> str:
+        """ Gets a destination path for a file which will be put in the source folder """
+        return os.path.join(self.source_directory, rel_path)
+
     def create_directory(self):
         os.makedirs(self.directory)
         os.makedirs(self.source_directory)
