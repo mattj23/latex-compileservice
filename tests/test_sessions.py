@@ -77,6 +77,10 @@ def test_session_saves_to_redis(fixture):
     original = fixture.manager.create_session("pdflatex", "latextest.tex")
     loaded = fixture.manager.load_session(original.key)
     assert loaded.compiler == original.compiler
+    assert loaded.target == original.target
+    assert loaded.status == original.status
+    assert loaded.exists == original.exists
+    assert loaded.created == original.created
 
 
 def test_session_saved_added_to_instance_list(fixture):
