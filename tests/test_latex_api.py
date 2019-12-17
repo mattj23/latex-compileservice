@@ -1,6 +1,6 @@
 import pytest
 from flask import Response, Request
-from latex import create_app
+from latex import create_app, time_service
 from latex.config import TestConfig
 
 
@@ -10,6 +10,7 @@ def client():
     with app.test_client() as client:
         with app.app_context():
             pass # init db?
+
         yield client
 
     # Clean up here
@@ -50,4 +51,11 @@ def test_post_session_creates_new_session(client):
     data = {"compiler": "pdflatex", "target": "test.tex"}
     response: Response = client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.status_code == 201
+
+
+def test_create_session_has_timestamp(client):
+    data = {"compiler": "pdflatex", "target": "test.tex"}
+    time_service.test.set_time(24601)
+    response: Response = client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.json["creation"] == 24601
 

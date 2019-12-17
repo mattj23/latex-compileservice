@@ -2,7 +2,7 @@ import json
 import uuid
 
 from flask import current_app as app
-from latex import redis_client
+from latex import redis_client, time_service
 from flask import jsonify, url_for, redirect, request
 from werkzeug.exceptions import BadRequest
 
@@ -26,10 +26,15 @@ def api_home():
 
 @app.route("/api/sessions", methods=["GET", "POST"])
 def get_sessions():
+    # No session listing is provided, a client must know the session they're trying to access information on in order
+    # to access the resource. The session ID is provided to the client when they create the session, so here we just
+    # redirect back to the create session form
     if request.method == "GET":
         return redirect(url_for(api_home.__name__))
 
     # Handle POST
+    # The posted data for session creation should follow the format given in the form at the root /api endpoint, and
+    # be given through json or form data.
     if not request.is_json or not type(request.json) is dict:
         raise BadRequest("post data must be json dictionary")
 
@@ -42,10 +47,11 @@ def get_sessions():
     # Generate key for new session
     key = str(uuid.uuid4()).replace("-", "")[:12]
 
-    # Create a session and return a unique URL
+    # Create a session and return a unique URL which the client can use to access the resource
     session_data = {
         "compiler": compiler,
         "target": target,
+        "creation": time_service.now,
         "href": url_for(session.__name__, session_id=key)
     }
 
@@ -57,4 +63,5 @@ def get_sessions():
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
 def session(session_id: str):
+    # This is the
     return jsonify({"hi": "there"})
