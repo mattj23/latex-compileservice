@@ -58,7 +58,9 @@ def get_sessions():
     redis_key = f"session:{key}"
     redis_client.set(redis_key, json.dumps(session_data), ex=5)
 
-    return jsonify(session_data)
+    created_location = url_for(session.__name__, session_id=key)
+
+    return jsonify(session_data), 201, {"location": created_location}
 
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])

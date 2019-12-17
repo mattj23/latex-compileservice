@@ -9,6 +9,7 @@ import redis
 
 from latex.config import TestConfig
 from latex.session import Session, SessionManager
+from latex.time_service import TimeService, TestClock
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
 
@@ -36,6 +37,7 @@ class TestFixture:
         self.client: redis.Redis = kwargs.get("client", None)
         self.instance: str = kwargs.get("instance", unique_key())
         self.manager: SessionManager = kwargs.get("manager", None)
+        self.clock: TestClock = kwargs.get("test_clock", None)
 
 
 @pytest.fixture(scope="session")
@@ -53,11 +55,15 @@ def fixture() -> TestFixture:
     # Create the redis client
     client = redis.Redis(host=host, port=int(port), db=int(db))
 
+    # Create the test time service
+    clock = TestClock()
+    time_service = TimeService(clock)
+
     # Create the working directory with a context manager so it's automatically
     # cleaned up after the test runs
     with tempfile.TemporaryDirectory() as temp_path:
-        manager = SessionManager(client, temp_path, instance_key)
-        fixture = TestFixture(client=client, manager=manager, instance=instance_key)
+        manager = SessionManager(client, temp_path, instance_key, time_service)
+        fixture = TestFixture(client=client, manager=manager, instance=instance_key, test_clock=clock)
         yield fixture
 
     # Clean up any keys in the instance list, if it's still there
@@ -88,13 +94,14 @@ def test_session_key_generated(fixture):
 def test_session_saves_to_redis(fixture):
     """ Tests that the session manager is correctly saving a session to the redis store, and
     that the data can be retrieved """
+    fixture.clock.set_time(12345)
     original = fixture.manager.create_session("pdflatex", "latextest.tex")
     loaded = fixture.manager.load_session(original.key)
     assert loaded.compiler == original.compiler
     assert loaded.target == original.target
     assert loaded.status == original.status
-    assert loaded.exists == original.exists
     assert loaded.created == original.created
+    assert original.created == 12345
 
 
 def test_session_saved_added_to_instance_list(fixture):

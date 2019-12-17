@@ -3,8 +3,8 @@ from flask import Flask
 
 
 class TimeService:
-    def __init__(self):
-        self._service: TestClock = None
+    def __init__(self, test_clock=None):
+        self._service: TestClock = test_clock
 
     @property
     def now(self):

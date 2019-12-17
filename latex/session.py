@@ -40,6 +40,7 @@ import os
 import uuid
 from datetime import datetime
 from redis import Redis
+from latex.time_service import TimeService
 
 
 def make_id():
@@ -52,7 +53,7 @@ class Session:
         self.key: str = kwargs["key"]
         self.compiler: str = kwargs["compiler"]
         self.target: str = kwargs["target"]
-        self.created: int = kwargs["created"]
+        self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
         self.working_directory: str = kwargs["working_directory"]
         self.directory: str = os.path.join(self.working_directory, self.key)
@@ -79,7 +80,6 @@ class Session:
                 "compiler": self.compiler,
                 "target": self.target,
                 "files": self.files,
-                "exists": self.exists,
                 "status": self.status}
 
     def get_source_path_for(self, rel_path: str) -> str:
@@ -92,7 +92,8 @@ class Session:
 
 
 class SessionManager:
-    def __init__(self, redis_client: Redis, working_directory: str, instance_key: str):
+    def __init__(self, redis_client: Redis, working_directory: str, instance_key: str, time_service: TimeService):
+        self.time_service = time_service
         self.redis = redis_client
         self.working_directory = working_directory
         self.instance_key = instance_key
@@ -101,7 +102,7 @@ class SessionManager:
         # Create the session
         kwargs = {
             "key": make_id(),
-            "created": datetime.utcnow().timestamp(),
+            "created": self.time_service.now,
             "compiler": compiler,
             "target": target,
             "status": "created",
