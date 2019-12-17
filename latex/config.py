@@ -6,6 +6,7 @@ class ConfigBase:
     TESTING = False
     REDIS_URL = os.environ.get("REDIS_URL") or "redis://:@localhost:6379/0"
     REDIS_SESSION_LIST = os.environ.get("REDIS_SESSION_LIST") or "all_sessions"
+    WORKING_DIRECTORY = os.environ.get("WORKING_DIRECTORY") or "/working"
 
 
 class ProductionConfig(ConfigBase):

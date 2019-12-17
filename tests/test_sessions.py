@@ -62,7 +62,7 @@ def fixture() -> TestFixture:
     # Create the working directory with a context manager so it's automatically
     # cleaned up after the test runs
     with tempfile.TemporaryDirectory() as temp_path:
-        manager = SessionManager(client, temp_path, instance_key, time_service)
+        manager = SessionManager(client, time_service, instance_key, temp_path)
         fixture = TestFixture(client=client, manager=manager, instance=instance_key, test_clock=clock)
         yield fixture
 

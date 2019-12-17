@@ -38,8 +38,8 @@
 import json
 import os
 import uuid
-from datetime import datetime
 from redis import Redis
+from flask import Flask
 from latex.time_service import TimeService
 
 
@@ -92,11 +92,15 @@ class Session:
 
 
 class SessionManager:
-    def __init__(self, redis_client: Redis, working_directory: str, instance_key: str, time_service: TimeService):
+    def __init__(self, redis_client: Redis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
         self.time_service = time_service
         self.redis = redis_client
         self.working_directory = working_directory
         self.instance_key = instance_key
+
+    def init_app(self, app: Flask, instance_id: str):
+        self.working_directory = app.config["WORKING_DIRECTORY"]
+        self.instance_key = instance_id
 
     def create_session(self, compiler: str, target: str) -> Session:
         # Create the session
