@@ -67,8 +67,13 @@ def fixture() -> TestFixture:
         yield fixture
 
     # Clean up any keys in the instance list, if it's still there
-    remaining = client.get(fixture.instance)
-    client.delete(fixture.instance)
+    while True:
+        element = client.spop(instance_key)
+        if element is None:
+            break
+
+        element_key = f"session:{element.decode()}"
+        client.delete(element_key)
 
 
 def test_redis_connection_writeable(fixture):

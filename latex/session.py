@@ -118,7 +118,7 @@ class SessionManager:
         session.create_directory()
 
         # Store to the redis client
-        self.redis.append(self.instance_key, session.key)
+        self.redis.sadd(self.instance_key, session.key)
         self.save_session(session)
 
         return session

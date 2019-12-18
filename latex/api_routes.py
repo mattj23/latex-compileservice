@@ -2,7 +2,7 @@ import json
 import uuid
 
 from flask import current_app as app
-from latex import redis_client, time_service
+from latex import redis_client, time_service, session_manager
 from flask import jsonify, url_for, redirect, request
 from werkzeug.exceptions import BadRequest
 
@@ -44,23 +44,10 @@ def get_sessions():
     if None in (compiler, target):
         raise BadRequest("both compiler and target must be specified")
 
-    # Generate key for new session
-    key = str(uuid.uuid4()).replace("-", "")[:12]
+    session_handle = session_manager.create_session(compiler, target)
 
-    # Create a session and return a unique URL which the client can use to access the resource
-    session_data = {
-        "compiler": compiler,
-        "target": target,
-        "creation": time_service.now,
-        "href": url_for(session.__name__, session_id=key)
-    }
-
-    redis_key = f"session:{key}"
-    redis_client.set(redis_key, json.dumps(session_data), ex=5)
-
-    created_location = url_for(session.__name__, session_id=key)
-
-    return jsonify(session_data), 201, {"location": created_location}
+    created_location = url_for(session.__name__, session_id=session_handle.key)
+    return jsonify(session_handle.public), 201, {"location": created_location}
 
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
