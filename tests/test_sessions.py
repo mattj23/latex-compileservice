@@ -8,7 +8,7 @@ import pytest
 import redis
 
 from latex.config import TestConfig
-from latex.session import Session, SessionManager
+from latex.session import Session, SessionManager, to_key
 from latex.time_service import TimeService, TestClock
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
@@ -40,7 +40,7 @@ class TestFixture:
         self.clock: TestClock = kwargs.get("test_clock", None)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def fixture() -> TestFixture:
     # Parse the TestConfig's REDIS_URL to extract host, port, db, throw an exception if it
     # doesn't work
@@ -61,9 +61,12 @@ def fixture() -> TestFixture:
 
     # Create the working directory with a context manager so it's automatically
     # cleaned up after the test runs
-    with tempfile.TemporaryDirectory() as temp_path:
+    with tempfile.TemporaryDirectory(prefix=instance_key) as temp_path:
         manager = SessionManager(client, time_service, instance_key, temp_path)
-        fixture = TestFixture(client=client, manager=manager, instance=instance_key, test_clock=clock)
+        fixture = TestFixture(client=client,
+                              manager=manager,
+                              instance=instance_key,
+                              test_clock=clock)
         yield fixture
 
     # Clean up any keys in the instance list, if it's still there
@@ -72,7 +75,7 @@ def fixture() -> TestFixture:
         if element is None:
             break
 
-        element_key = f"session:{element.decode()}"
+        element_key = to_key(element.decode())
         client.delete(element_key)
 
 
@@ -89,14 +92,14 @@ def test_redis_connection_writeable(fixture):
     assert final_read is None
 
 
-def test_session_key_generated(fixture):
+def test_session_key_generated(fixture: TestFixture):
     """ Tests whether the session key contains at least twelve hexadecimal digits """
     sesh = fixture.manager.create_session("pdflatex", "latextest.tex")
     key_pattern = re.compile(r"[0-9a-f]{12}")
     assert key_pattern.findall(sesh.key)
 
 
-def test_session_saves_to_redis(fixture):
+def test_session_saves_to_redis(fixture: TestFixture):
     """ Tests that the session manager is correctly saving a session to the redis store, and
     that the data can be retrieved """
     fixture.clock.set_time(12345)
@@ -109,13 +112,22 @@ def test_session_saves_to_redis(fixture):
     assert original.created == 12345
 
 
-def test_session_saved_added_to_instance_list(fixture):
+def test_session_saved_added_to_instance_list(fixture: TestFixture):
     """ Tests that when a session is created, the instance list of sessions now contains
     the new session. Verify that this works with multiple sessions. """
-    assert False
+    session = fixture.manager.create_session("pdflatex", "sample1.tex")
+    contents = set(x.decode() for x in fixture.client.smembers(fixture.instance))
+    assert session.key in contents
+    assert len(contents) == 1
+
+    session2 = fixture.manager.create_session("xelatex", "sample1.tex")
+    contents = set(x.decode() for x in fixture.client.smembers(fixture.instance))
+    assert session.key in contents
+    assert session2.key in contents
+    assert len(contents) == 2
 
 
-def test_session_file_saves_to_disk(fixture):
+def test_session_file_saves_to_disk(fixture: TestFixture):
     """ Tests that when a file is added to the session it is saved correctly to the source/
     directory in the working folder (verifies by checksum) """
     source_path = os.path.join(find_test_asset_folder(), "sample1.tex")
@@ -132,16 +144,28 @@ def test_session_file_saves_to_disk(fixture):
     assert original_hash == copied_hash
 
 
-def test_session_deleted_is_gone_from_redis_and_disk(fixture):
+def test_session_deleted_is_gone_from_redis_and_disk(fixture: TestFixture):
     """ Tests that when a session is deleted, its record is no longer accessible via redis
     and its working directory is removed from the disk"""
-    assert False
+    original = fixture.manager.create_session("xelatex", "sample1.tex")
+
+    session = fixture.manager.load_session(original.key)
+    fixture.manager.delete_session(session)
+
+    reloaded = fixture.manager.load_session(original.key)
+
+    assert reloaded is None
+    assert not os.path.exists(original.directory)
 
 
-def test_session_deleted_is_gone_from_instance_list(fixture):
+def test_session_deleted_is_gone_from_instance_list(fixture: TestFixture):
     """ Tests that when a session is deleted its record is no longer present in the
     instance list """
-    assert False
+    original = fixture.manager.create_session("xelatex", "sample1.tex")
+    session = fixture.manager.load_session(original.key)
+    fixture.manager.delete_session(session)
+
+    assert not fixture.client.sismember(fixture.instance, original.key)
 
 
 

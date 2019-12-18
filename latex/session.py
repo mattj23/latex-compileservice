@@ -37,6 +37,7 @@
 """
 import json
 import os
+import shutil
 import uuid
 from redis import Redis
 from flask import Flask
@@ -47,6 +48,11 @@ def make_id():
     return str(uuid.uuid4()).replace("-", "")[:16]
 
 
+def to_key(session_id: str) -> str:
+    """ converts a simple string key to the form used in redis """
+    return f"session:{session_id}"
+
+
 class Session:
 
     def __init__(self, **kwargs):
@@ -55,9 +61,14 @@ class Session:
         self.target: str = kwargs["target"]
         self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
-        self.working_directory: str = kwargs["working_directory"]
-        self.directory: str = os.path.join(self.working_directory, self.key)
+        self.directory: str = os.path.join(kwargs["working_directory"], self.key)
+        self.directory: str = os.path.join(self.directory, self.key)
         self.source_directory: str = os.path.join(self.directory, "source")
+
+    @property
+    def _redis_key(self):
+        """ the prefixed key used by redis to store this session information """
+        return to_key(self.key)
 
     @property
     def exists(self):
@@ -117,17 +128,25 @@ class SessionManager:
         # Create the folder on disk
         session.create_directory()
 
-        # Store to the redis client
+        # Store to the redis collection of sessions for this instance
         self.redis.sadd(self.instance_key, session.key)
+
+        # Also save the session to redis
         self.save_session(session)
 
         return session
 
+    def delete_session(self, session: Session):
+        # Remove from disk and from redis
+        shutil.rmtree(session.directory, True)
+        self.redis.delete(session._redis_key)
+        self.redis.srem(self.instance_key, session.key)
+
     def save_session(self, session: Session) -> None:
-        self.redis.set(f"session:{session.key}", json.dumps(session.public))
+        self.redis.set(session._redis_key, json.dumps(session.public))
 
     def load_session(self, key: str) -> Session:
-        data: bytes = self.redis.get(f"session:{key}")
+        data: bytes = self.redis.get(to_key(key))
         if data is None:
             return None
 
