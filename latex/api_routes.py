@@ -1,8 +1,7 @@
-import json
-import uuid
+import os
 
 from flask import current_app as app
-from latex import redis_client, time_service, session_manager
+from latex import session_manager
 from flask import jsonify, url_for, redirect, request
 from werkzeug.exceptions import BadRequest
 
@@ -52,5 +51,32 @@ def get_sessions():
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
 def session(session_id: str):
-    # This is the
-    return jsonify({"hi": "there"})
+    # Retrieve the session information
+    handle = session_manager.load_session(session_id)
+    if handle is None:
+        return BadRequest(f"session {session_id} could not be found")
+
+    # On a get request, we simply return the session information as we have it
+    if request.method == "GET":
+        return jsonify(handle.public)
+
+    # A post request allows additional information to be added to the session
+    if request.method == "POST":
+        return jsonify({"hi": "there"})
+
+
+@app.route("/api/sessions/<session_id>/files", methods=["GET", "POST"])
+def session_files(session_id: str):
+    # Retrieve the session information
+    handle = session_manager.load_session(session_id)
+    if handle is None:
+        return BadRequest(f"session {session_id} could not be found")
+
+    # On a get request, we simply return the session information as we have it
+    if request.method == "GET":
+        return jsonify(handle.public["files"])
+
+    # A post request allows files to be added to the session
+    if request.method == "POST":
+        for name, file_item in request.files.items():
+            target_path = os.path.join(handle.source_directory, file_item.filename)

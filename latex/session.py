@@ -34,6 +34,12 @@
     or that a set number of recompiles have been used, the produced files are extracted and saved temporarily so that
     the working directory can be removed.
 
+    Session possible status:
+    1. editable - the session can be modified, files and templates added
+    2. finalized - the session is finalized, and can no longer be edited; a worker will pick it up when it can
+    3. success - the session was compiled successfully, and the product is available to retrieve
+    4. error - the session did not complete successfully, but the log files can be retrieved for debugging
+
 """
 import json
 import os
@@ -62,7 +68,6 @@ class Session:
         self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
         self.directory: str = os.path.join(kwargs["working_directory"], self.key)
-        self.directory: str = os.path.join(self.directory, self.key)
         self.source_directory: str = os.path.join(self.directory, "source")
 
     @property
@@ -120,7 +125,7 @@ class SessionManager:
             "created": self.time_service.now,
             "compiler": compiler,
             "target": target,
-            "status": "created",
+            "status": "editable",
             "working_directory": self.working_directory
         }
         session = Session(**kwargs)

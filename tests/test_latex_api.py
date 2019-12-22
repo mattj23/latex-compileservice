@@ -1,9 +1,18 @@
+import os
+import io
 import shutil
 import pytest
 import tempfile
 from flask import Response, Request
 from latex import create_app, time_service, session_manager, redis_client
 from latex.config import TestConfig
+
+from tests.test_sessions import find_test_asset_folder, hash_file
+
+
+def file_byte_stream(file_path):
+    with open(file_path, "rb") as handle:
+        return io.BytesIO(handle.read())
 
 
 class TestFixture:
@@ -71,6 +80,7 @@ def test_post_session_fails_if_missing_target(fixture):
 def test_post_session_creates_new_session(fixture):
     data = {"compiler": "pdflatex", "target": "test.tex"}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.json["status"] == "editable"
     assert response.status_code == 201
 
 
@@ -80,3 +90,30 @@ def test_create_session_has_timestamp(fixture):
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.json["created"] == 24601
 
+
+def test_get_session_information(fixture):
+    data = {"compiler": "pdflatex", "target": "test5.tex"}
+    time_service.test.set_time(24601)
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_key = response.json["key"]
+    session_url = f"/api/sessions/{session_key}"
+    response2: Response = fixture.client.get(session_url)
+
+    assert response2.json["compiler"] == "pdflatex"
+    assert response2.json["target"] == "test5.tex"
+    assert response2.json["created"] == 24601
+
+
+def test_add_file_to_session(fixture):
+    target_file = "sample1.tex"
+    data = {"compiler": "xelatex", "target": target_file}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session = session_manager.load_session(response.json["key"])
+
+    file_url = f"/api/sessions/{session.key}/files"
+    source_path = os.path.join(find_test_asset_folder(), target_file)
+    data2 = { "file0": (file_byte_stream(source_path), "test/" + target_file)}
+    response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
+
+    expected_path = os.path.join(session.source_directory, target_file)
+    assert hash_file(source_path) == hash_file(expected_path)
