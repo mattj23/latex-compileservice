@@ -4,7 +4,7 @@ from flask import Flask
 from flask_redis import FlaskRedis
 from latex.config import ConfigBase, ProductionConfig
 from latex.session import SessionManager
-from latex.time_service import TimeService
+from latex.services.time_service import TimeService
 
 # Globally accessible instances go here
 redis_client = FlaskRedis()

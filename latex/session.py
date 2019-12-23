@@ -42,12 +42,10 @@
 
 """
 import json
-import os
-import shutil
 import uuid
 from redis import Redis
 from flask import Flask
-from latex.time_service import TimeService
+from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
 
 

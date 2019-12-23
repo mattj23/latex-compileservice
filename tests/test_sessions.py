@@ -1,5 +1,4 @@
 import os
-import shutil
 import tempfile
 import re
 import uuid
@@ -9,7 +8,7 @@ import redis
 
 from latex.config import TestConfig
 from latex.session import Session, SessionManager, to_key
-from latex.time_service import TimeService, TestClock
+from latex.services.time_service import TimeService, TestClock
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
 
