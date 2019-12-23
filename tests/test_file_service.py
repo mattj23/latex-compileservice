@@ -139,4 +139,40 @@ def test_get_all_files_works(simple_temp_paths):
     assert len(all_files) == 2
 
 
+def test_opens_fails_outside_contained(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
 
+    with pytest.raises(ValueError):
+        with service.open(os.path.join(temp1, "test.txt"), "w") as handle:
+            handle.write("test")
+
+
+def test_opens_for_read_inside_contained(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    sub0 = os.path.join(temp0, "sub0")
+    f0, f1 = make_test_files(sub0)
+
+    with service.open(f0, "r") as handle:
+        assert handle.read() == "test data 0"
+
+
+def test_opens_for_write_inside_contained(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    f0 = os.path.join(temp0, "test.txt")
+
+    with service.open(f0, "w") as handle:
+        handle.write("test data 0")
+
+    with open(f0, "r") as handle:
+        assert handle.read() == "test data 0"
+
+
+def test_opens_for_write_with_relpath(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    f0 = os.path.join(temp0, "test.txt")
+
+    with service.open("test.txt", "w") as handle:
+        handle.write("test data 0")
+
+    with open(f0, "r") as handle:
+        assert handle.read() == "test data 0"

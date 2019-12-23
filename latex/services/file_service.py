@@ -10,10 +10,18 @@ from typing import List
 def check_contains(method):
     """ Decorator to prevent access to operations on files and directories outside of the root path of a file service
     object. This will only work on class methods of an object that contains a 'root_path' attribute, and where the
-    second argument is the path of the object to be accessed. """
+    second argument is the path of the object to be accessed. If the wrapped method is provided with a relative path,
+    this decorator will interpret it as from the FileService root path and substitute it with the equivalent
+    absolute path. """
     def wrapped_with_check(*args):
+        args = list(args)
         instance: FileService = args[0]
         path: str = args[1]
+
+        if not os.path.isabs(path):
+            path = os.path.join(instance.root_path, path)
+            args[1] = path
+
         if not instance.contains(path):
             raise ValueError(f"The specified path {path} is not contained by the root working directory {instance.root_path}")
         return method(*args)
