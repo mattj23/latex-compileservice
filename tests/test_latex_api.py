@@ -17,24 +17,26 @@ def file_byte_stream(file_path):
 
 class TestFixture:
     def __init__(self, **kwargs):
-        self.app = create_app(TestConfig())
+        self.app = create_app(kwargs['config'])
         self.client = None
 
 
 @pytest.fixture(scope="module")
 def fixture():
-    test_fixture = TestFixture()
+    with tempfile.TemporaryDirectory() as temp_path:
+        config = TestConfig()
+        config.WORKING_DIRECTORY = temp_path
 
-    with test_fixture.app.test_client() as client, tempfile.TemporaryDirectory() as temp_path:
-        test_fixture.client = client
-        session_manager.working_directory = temp_path
+        test_fixture = TestFixture(config=config)
+        with test_fixture.app.test_client() as client:
+            test_fixture.client = client
 
-        with test_fixture.app.app_context():
-            # any database stuff goes here
-            pass
+            with test_fixture.app.app_context():
+                # any database stuff goes here
+                pass
 
-        # Return to caller
-        yield test_fixture
+            # Return to caller
+            yield test_fixture
 
     # Clean up here
     shutil.rmtree(temp_path, True)
@@ -112,8 +114,8 @@ def test_add_file_to_session(fixture):
 
     file_url = f"/api/sessions/{session.key}/files"
     source_path = os.path.join(find_test_asset_folder(), target_file)
-    data2 = { "file0": (file_byte_stream(source_path), "test/" + target_file)}
+    data2 = {"file0": (file_byte_stream(source_path), "test/" + target_file)}
     response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
 
-    expected_path = os.path.join(session.source_directory, target_file)
+    expected_path = os.path.join(session.sources.root_path, "test", target_file)
     assert hash_file(source_path) == hash_file(expected_path)

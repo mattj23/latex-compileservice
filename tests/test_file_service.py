@@ -27,9 +27,9 @@ def make_test_files(sub_folder):
     return sub_file0, sub_file1
 
 
-def test_contains_directory_does_not_contain_self(simple_temp_paths):
+def test_contains_directory_contains_self(simple_temp_paths):
     service, temp0, temp1, parent = simple_temp_paths
-    assert not service.contains(temp0)
+    assert service.contains(temp0)
 
 
 def test_contains_directory_does_not_contain_other(simple_temp_paths):

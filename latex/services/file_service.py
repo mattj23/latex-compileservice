@@ -36,8 +36,14 @@ class FileService:
 
     def contains(self, path: str) -> bool:
         """ Checks to see if the provided path is contained by the root path. Use to prevent ../ and symlinks
-        from escaping the working directory. A directory DOES NOT contain itself. """
+        from escaping the working directory. """
         test_path = os.path.realpath(path)
+
+        # Special case for the root path
+        if os.path.isdir(test_path):
+            if os.path.join(test_path, "") == self.root_path:
+                return True
+
         return os.path.commonprefix([test_path, self.root_path]) == self.root_path
 
     @check_contains
@@ -57,6 +63,10 @@ class FileService:
 
     @check_contains
     def open(self, path: str, mode: str):
+        if "w" in mode or "+" in mode:
+            directory = os.path.dirname(path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
         return open(path, mode)
 
     @check_contains

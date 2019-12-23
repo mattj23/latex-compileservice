@@ -87,7 +87,7 @@ class Session:
 
     @property
     def files(self):
-        return self.sources.get_all_files(Session._source_directory)
+        return self.sources.get_all_files(".")
 
     @property
     def public(self):

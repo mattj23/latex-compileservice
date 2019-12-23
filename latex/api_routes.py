@@ -45,12 +45,12 @@ def get_sessions():
 
     session_handle = session_manager.create_session(compiler, target)
 
-    created_location = url_for(session.__name__, session_id=session_handle.key)
+    created_location = url_for(sessions_root.__name__, session_id=session_handle.key)
     return jsonify(session_handle.public), 201, {"location": created_location}
 
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
-def session(session_id: str):
+def sessions_root(session_id: str):
     # Retrieve the session information
     handle = session_manager.load_session(session_id)
     if handle is None:
@@ -58,7 +58,19 @@ def session(session_id: str):
 
     # On a get request, we simply return the session information as we have it
     if request.method == "GET":
-        return jsonify(handle.public)
+        response = dict(handle.public)
+        form_info = {
+            "add_file": {
+                "href": url_for(session_files.__name__, session_id=session_id),
+                "rel": ["create-form"],
+                "method": "POST",
+                "value": [
+                    {"label": "upload file(s) with multipart/form-data, filename is used to specify path"}
+                ]
+            }
+        }
+        response.update(form_info)
+        return jsonify(response)
 
     # A post request allows additional information to be added to the session
     if request.method == "POST":
@@ -68,15 +80,19 @@ def session(session_id: str):
 @app.route("/api/sessions/<session_id>/files", methods=["GET", "POST"])
 def session_files(session_id: str):
     # Retrieve the session information
-    handle = session_manager.load_session(session_id)
-    if handle is None:
+    session = session_manager.load_session(session_id)
+    if session is None:
         return BadRequest(f"session {session_id} could not be found")
 
     # On a get request, we simply return the session information as we have it
     if request.method == "GET":
-        return jsonify(handle.public["files"])
+        return jsonify(session.public["files"])
 
     # A post request allows files to be added to the session
     if request.method == "POST":
         for name, file_item in request.files.items():
-            target_path = os.path.join(handle.source_directory, file_item.filename)
+            with session.sources.open(file_item.filename, "wb") as handle:
+                file_item.save(handle)
+
+        return jsonify(session.public["files"]), 201
+
