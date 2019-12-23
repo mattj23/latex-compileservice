@@ -176,3 +176,64 @@ def test_opens_for_write_with_relpath(simple_temp_paths):
 
     with open(f0, "r") as handle:
         assert handle.read() == "test data 0"
+
+
+def test_exists_fails_outside_contained(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    f0, f1 = make_test_files(os.path.join(temp1, "sub"))
+
+    with pytest.raises(ValueError):
+        service.exists(f0)
+
+
+def test_exists_positive_with_file(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    f0, f1 = make_test_files(os.path.join(temp0, "sub"))
+
+    assert service.exists(f0)
+    assert service.exists(os.path.relpath(f0, temp0))
+
+
+def test_exists_negative_with_file(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    f0, f1 = make_test_files(os.path.join(temp0, "sub"))
+
+    assert not service.exists(f0 + ".not")
+    assert not service.exists(os.path.relpath(f0 + ".not", temp0))
+
+
+def test_exists_positive_with_folder(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    sub = os.path.join(temp0, "sub")
+    f0, f1 = make_test_files(sub)
+
+    assert service.exists(sub)
+    assert service.exists(os.path.relpath(sub, temp0))
+
+
+def test_exists_negative_with_folder(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    sub = os.path.join(temp0, "sub")
+    f0, f1 = make_test_files(sub)
+
+    assert not service.exists(sub + "not")
+    assert not service.exists(os.path.relpath(sub + "not", temp0))
+
+
+def test_create_from_fails_outside_contained(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+
+    with pytest.raises(ValueError):
+        service.create_from(temp1)
+
+
+def test_create_from_subdirectory(simple_temp_paths):
+    service, temp0, temp1, parent = simple_temp_paths
+    service.makedirs("test")
+
+    created = service.create_from("test")
+
+    assert type(created) is FileService
+    assert created.root_path == os.path.join(service.root_path, "test", "")
+
+
