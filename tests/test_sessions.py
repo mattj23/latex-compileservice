@@ -130,16 +130,18 @@ def test_session_saved_added_to_instance_list(fixture: TestFixture):
 def test_session_file_saves_to_disk(fixture: TestFixture):
     """ Tests that when a file is added to the session it is saved correctly to the source/
     directory in the working folder (verifies by checksum) """
-    source_path = os.path.join(find_test_asset_folder(), "sample1.tex")
+    target_filename = "sample1.tex"
+    source_path = os.path.join(find_test_asset_folder(), target_filename)
     if not os.path.exists(source_path):
         raise Exception(f"Sample file '{source_path}' not found")
 
     original_hash = hash_file(source_path)
 
-    session = fixture.manager.create_session("pdflatex", "sample1.tex")
-    destination = session.get_source_path_for("sample1.tex")
-    shutil.copy(source_path, destination)
+    session = fixture.manager.create_session("pdflatex", target_filename)
+    with session.sources.open(target_filename, "w") as dest, open(source_path, "r") as source:
+        dest.write(source.read())
 
+    destination = os.path.join(fixture.manager.working_directory, session.key, Session._source_directory, target_filename)
     copied_hash = hash_file(destination)
     assert original_hash == copied_hash
 
@@ -155,7 +157,7 @@ def test_session_deleted_is_gone_from_redis_and_disk(fixture: TestFixture):
     reloaded = fixture.manager.load_session(original.key)
 
     assert reloaded is None
-    assert not os.path.exists(original.directory)
+    assert not os.path.exists(session._file_service.root_path)
 
 
 def test_session_deleted_is_gone_from_instance_list(fixture: TestFixture):

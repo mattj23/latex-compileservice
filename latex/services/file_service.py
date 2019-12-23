@@ -59,3 +59,10 @@ class FileService:
     def open(self, path: str, mode: str):
         return open(path, mode)
 
+    @check_contains
+    def exists(self, path: str):
+        return os.path.exists(path)
+
+    @check_contains
+    def create_from(self, path):
+        return FileService(path)

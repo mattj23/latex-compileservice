@@ -48,6 +48,7 @@ import uuid
 from redis import Redis
 from flask import Flask
 from latex.time_service import TimeService
+from latex.services.file_service import FileService
 
 
 def make_id():
@@ -60,6 +61,8 @@ def to_key(session_id: str) -> str:
 
 
 class Session:
+    _source_directory = "source"
+    _template_directory = "templates"
 
     def __init__(self, **kwargs):
         self.key: str = kwargs["key"]
@@ -67,8 +70,15 @@ class Session:
         self.target: str = kwargs["target"]
         self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
-        self.directory: str = os.path.join(kwargs["working_directory"], self.key)
-        self.source_directory: str = os.path.join(self.directory, "source")
+        self._file_service: FileService = kwargs["file_service"]
+
+        if not self._file_service.exists(Session._source_directory):
+            self._file_service.makedirs(Session._source_directory)
+        if not self._file_service.exists(Session._template_directory):
+            self._file_service.makedirs(Session._template_directory)
+
+        self.sources = self._file_service.create_from(Session._source_directory)
+        self.templates = self._file_service.create_from(Session._template_directory)
 
     @property
     def _redis_key(self):
@@ -76,18 +86,8 @@ class Session:
         return to_key(self.key)
 
     @property
-    def exists(self):
-        return os.path.exists(self.directory)
-
-    @property
     def files(self):
-        if not self.exists:
-            return []
-
-        all_files = []
-        for _, _, files in os.walk(self.source_directory):
-            all_files += files
-        return all_files
+        return self.sources.get_all_files(Session._source_directory)
 
     @property
     def public(self):
@@ -98,14 +98,6 @@ class Session:
                 "files": self.files,
                 "status": self.status}
 
-    def get_source_path_for(self, rel_path: str) -> str:
-        """ Gets a destination path for a file which will be put in the source folder """
-        return os.path.join(self.source_directory, rel_path)
-
-    def create_directory(self):
-        os.makedirs(self.directory)
-        os.makedirs(self.source_directory)
-
 
 class SessionManager:
     def __init__(self, redis_client: Redis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
@@ -113,25 +105,33 @@ class SessionManager:
         self.redis = redis_client
         self.working_directory = working_directory
         self.instance_key = instance_key
+        self._init_file_service()
+
+    def _init_file_service(self):
+        if self.working_directory is not None:
+            self.root_file_service = FileService(self.working_directory)
 
     def init_app(self, app: Flask, instance_id: str):
         self.working_directory = app.config["WORKING_DIRECTORY"]
+        self._init_file_service()
         self.instance_key = instance_id
 
     def create_session(self, compiler: str, target: str) -> Session:
+        key = make_id()
+
+        # Create the working directory
+        self.root_file_service.makedirs(key)
+
         # Create the session
         kwargs = {
-            "key": make_id(),
+            "key": key,
             "created": self.time_service.now,
             "compiler": compiler,
             "target": target,
             "status": "editable",
-            "working_directory": self.working_directory
+            "file_service": self.root_file_service.create_from(key)
         }
         session = Session(**kwargs)
-
-        # Create the folder on disk
-        session.create_directory()
 
         # Store to the redis collection of sessions for this instance
         self.redis.sadd(self.instance_key, session.key)
@@ -143,7 +143,7 @@ class SessionManager:
 
     def delete_session(self, session: Session):
         # Remove from disk and from redis
-        shutil.rmtree(session.directory, True)
+        self.root_file_service.rmtree(session.key)
         self.redis.delete(session._redis_key)
         self.redis.srem(self.instance_key, session.key)
 
@@ -156,5 +156,5 @@ class SessionManager:
             return None
 
         kwargs = json.loads(data.decode())
-        kwargs["working_directory"] = self.working_directory
+        kwargs["file_service"] = self.root_file_service.create_from(key)
         return Session(**kwargs)
