@@ -137,7 +137,7 @@ def test_session_file_saves_to_disk(fixture: TestFixture):
     original_hash = hash_file(source_path)
 
     session = fixture.manager.create_session("pdflatex", target_filename)
-    with session.sources.open(target_filename, "w") as dest, open(source_path, "r") as source:
+    with session.sources.open(target_filename, "wb") as dest, open(source_path, "rb") as source:
         dest.write(source.read())
 
     destination = os.path.join(fixture.manager.working_directory, session.key, Session._source_directory, target_filename)
