@@ -75,8 +75,8 @@ class Session:
         if not self._file_service.exists(Session._template_directory):
             self._file_service.makedirs(Session._template_directory)
 
-        self.sources = self._file_service.create_from(Session._source_directory)
-        self.templates = self._file_service.create_from(Session._template_directory)
+        self.source_files = self._file_service.create_from(Session._source_directory)
+        self.template_files = self._file_service.create_from(Session._template_directory)
 
     @property
     def _redis_key(self):
@@ -85,7 +85,18 @@ class Session:
 
     @property
     def files(self):
-        return self.sources.get_all_files(".")
+        return self.source_files.get_all_files(".")
+
+    @property
+    def templates(self):
+        files = self.template_files.get_all_files(".")
+        template_data = {}
+        for f in files:
+            with self.template_files.open(f, "r") as handle:
+                data = json.loads(handle.read())
+                if "target" in data.keys():
+                    template_data[data["target"]] = data
+        return template_data
 
     @property
     def public(self):
@@ -94,6 +105,7 @@ class Session:
                 "compiler": self.compiler,
                 "target": self.target,
                 "files": self.files,
+                "templates": self.templates,
                 "status": self.status}
 
 

@@ -1,4 +1,4 @@
-import os
+import json
 
 from flask import current_app as app
 from latex import session_manager
@@ -45,12 +45,12 @@ def get_sessions():
 
     session_handle = session_manager.create_session(compiler, target)
 
-    created_location = url_for(sessions_root.__name__, session_id=session_handle.key)
+    created_location = url_for(session_root.__name__, session_id=session_handle.key)
     return jsonify(session_handle.public), 201, {"location": created_location}
 
 
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
-def sessions_root(session_id: str):
+def session_root(session_id: str):
     # Retrieve the session information
     handle = session_manager.load_session(session_id)
     if handle is None:
@@ -67,6 +67,16 @@ def sessions_root(session_id: str):
                 "value": [
                     {"label": "upload file(s) with multipart/form-data, filename is used to specify path"}
                 ]
+            },
+            "add_templates": {
+                "href": url_for(session_templates.__name__, session_id=session_id),
+                "rel": ["create-form"],
+                "method": "POST",
+                "value": [
+                    {"name": "target", "required": True, "label": "target path/filename to render the template to" },
+                    {"name": "text", "required": True, "label": "latex text to be rendered by jinja2"},
+                    {"name": "data", "required": True, "label": "json dictionary to be rendered into the template"}
+                ]
             }
         }
         response.update(form_info)
@@ -74,6 +84,7 @@ def sessions_root(session_id: str):
 
     # A post request allows additional information to be added to the session
     if request.method == "POST":
+        # TODO: what values should be postable here?
         return jsonify({"hi": "there"})
 
 
@@ -91,8 +102,43 @@ def session_files(session_id: str):
     # A post request allows files to be added to the session
     if request.method == "POST":
         for name, file_item in request.files.items():
-            with session.sources.open(file_item.filename, "wb") as handle:
+            with session.source_files.open(file_item.filename, "wb") as handle:
                 file_item.save(handle)
 
         return jsonify(session.public["files"]), 201
+
+
+@app.route("/api/sessions/<session_id>/templates", methods=["GET", "POST"])
+def session_templates(session_id: str):
+    # Retrieve the session information
+    session = session_manager.load_session(session_id)
+    if session is None:
+        return BadRequest(f"session {session_id} could not be found")
+
+    # On a get request, we simply return the session information as we have it
+    if request.method == "GET":
+        return jsonify(session.public["templates"])
+
+    # A post request allows files to be added to the session
+    if request.method == "POST":
+        if not request.is_json or not type(request.json) is dict:
+            raise BadRequest("post data must be json dictionary")
+
+        text = request.json.get("text", None)
+        target = request.json.get("target", None)
+        data = request.json.get("data")
+
+        if text is None or type(text) is not str:
+            raise BadRequest("Field 'text' must be supplied and be a valid string")
+
+        if target is None or type(target) is not str:
+            raise BadRequest("Field 'target' must be supplied and be a valid string")
+
+        if data is None or type(data) is not dict:
+            raise BadRequest("Field 'data' must be supplied and be a valid dictionary")
+
+        with session.template_files.open(target, "w") as handle:
+            handle.write(json.dumps({"text": text, "target": target, "data": data}))
+
+        return jsonify(session.public["templates"]), 201
 

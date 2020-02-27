@@ -117,5 +117,43 @@ def test_add_file_to_session(fixture):
     data2 = {"file0": (file_byte_stream(source_path), "test/" + target_file)}
     response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
 
-    expected_path = os.path.join(session.sources.root_path, "test", target_file)
+    expected_path = os.path.join(session.source_files.root_path, "test", target_file)
     assert hash_file(source_path) == hash_file(expected_path)
+
+
+def test_get_template_form_url(fixture):
+    data = {"compiler": "xelatex", "target": "test.tex"}
+    post_response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_url = post_response.location
+    session = session_manager.load_session(post_response.json["key"])
+
+    get_response: Response = fixture.client.get(session_url)
+    assert get_response.is_json
+    assert type(get_response.json) is dict
+    assert "add_templates" in get_response.json.keys()
+
+
+def test_add_template(fixture):
+    data = {"compiler": "xelatex", "target": "test.tex"}
+    post_response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_url = post_response.location
+    session = session_manager.load_session(post_response.json["key"])
+
+    data2 = {
+        "target": "test.tex",
+        "text": "this is the template text\n",
+        "data": {"test": "hello"}
+     }
+
+    template_url = f"/api/sessions/{session.key}/templates"
+    template_post_response: Response = fixture.client.post(template_url, json=data2, follow_redirects=True)
+
+    assert template_post_response.is_json
+    assert type(template_post_response.json) is dict
+    assert template_post_response.json["test.tex"]["target"] == data2["target"]
+    assert template_post_response.json["test.tex"]["text"] == data2["text"]
+    assert template_post_response.json["test.tex"]["data"] == data2["data"]
+
+
+
+
