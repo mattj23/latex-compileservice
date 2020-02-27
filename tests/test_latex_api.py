@@ -155,5 +155,25 @@ def test_add_template(fixture):
     assert template_post_response.json["test.tex"]["data"] == data2["data"]
 
 
+def test_set_session_finalized(fixture):
+    assert False
 
 
+def test_not_editable_session_post_fails(fixture):
+    assert False
+
+
+def test_not_editable_session_file_add_fails(fixture):
+    assert False
+
+
+def test_not_editable_session_template_add_fails(fixture):
+    assert False
+
+
+def test_successful_session_retrieve_product(fixture):
+    assert False
+
+
+def test_failed_session_retrieve_logs(fixture):
+    assert False
