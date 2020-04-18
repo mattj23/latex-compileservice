@@ -6,5 +6,11 @@ services:
     environment:
       - LC_ALL=C.UTF-8
       - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
     ports:
       - "5000:5000"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:5
