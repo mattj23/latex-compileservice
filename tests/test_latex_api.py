@@ -8,7 +8,7 @@ from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
 
 from latex.config import TestConfig
-from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT, ERROR_TEXT
+from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT, ERROR_TEXT, EDITABLE_TEXT
 from latex.rendering import compile_latex, RenderResult
 from tests.test_sessions import find_test_asset_folder, hash_file
 
@@ -286,4 +286,19 @@ def test_failed_session_retrieve_logs(fixture: TestFixture):
     log_fetch: Response = fixture.client.get(log_url, follow_redirects=True)
 
     assert "LaTeX Error: File `notarealarticle.cls' not found." in log_fetch.data.decode()
+
+
+def test_status_endpoint(fixture: TestFixture):
+    for n, finalize in ((3, False), (2, True)):
+        for i in range(n):
+            session = create_session_add_file(fixture, "sample1.tex")
+            if finalize:
+                finalize_session(fixture, session)
+
+    status_url = "/api/status"
+    response: Response = fixture.client.get(status_url, follow_redirects=True)
+
+    assert response.is_json
+    assert "sessions" in response.json.keys()
+    assert "time" in response.json.keys()
 

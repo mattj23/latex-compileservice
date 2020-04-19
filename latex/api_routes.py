@@ -6,6 +6,7 @@ from flask import jsonify, url_for, redirect, request, Response, send_file
 from werkzeug.exceptions import BadRequest, NotFound
 
 from latex import session_manager, task_queue
+from latex.services.time_service import TimeService
 from latex.rendering import compile_latex
 
 
@@ -24,6 +25,20 @@ def api_home():
     }
 
     return jsonify(form)
+
+
+@app.route("/api/status", methods=['GET'])
+def get_status():
+    session_ids = session_manager.get_all_session_ids()
+    sessions = {}
+    for key in session_ids:
+        session = session_manager.load_session(key)
+        if session.status not in sessions.keys():
+            sessions[session.status] = 1
+        else:
+            sessions[session.status] += 1
+
+    return jsonify({"time": TimeService().now, "sessions": sessions})
 
 
 @app.route("/api/sessions", methods=["GET", "POST"])
