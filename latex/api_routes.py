@@ -1,10 +1,11 @@
 import json
 
 from flask import current_app as app
-from latex import session_manager
 from flask import jsonify, url_for, redirect, request
 from werkzeug.exceptions import BadRequest
 
+from latex import session_manager, task_queue
+from latex.rendering import render_latex
 
 @app.route("/api", methods=["GET"])
 def api_home():
@@ -73,9 +74,18 @@ def session_root(session_id: str):
                 "rel": ["create-form"],
                 "method": "POST",
                 "value": [
-                    {"name": "target", "required": True, "label": "target path/filename to render the template to" },
+                    {"name": "target", "required": True, "label": "target path/filename to render the template to"},
                     {"name": "text", "required": True, "label": "latex text to be rendered by jinja2"},
                     {"name": "data", "required": True, "label": "json dictionary to be rendered into the template"}
+                ]
+            },
+            "finalize": {
+                "href": url_for(session_root.__name__, session_id=session_id),
+                "rel": ["edit-form"],
+                "method": "POST",
+                "value": [
+                    {"name": "finalize", "required": False,
+                     "label": "set true to finalize the session and release it to the compiler"}
                 ]
             }
         }
@@ -84,7 +94,15 @@ def session_root(session_id: str):
 
     # A post request allows additional information to be added to the session
     if request.method == "POST":
-        # TODO: what values should be postable here?
+        # Handle JSON data posted
+        if request.is_json and isinstance(request.json, dict):
+
+            # Session finalization
+            if request.json.get("finalize", False) == True:
+                handle.finalize()
+                args = (handle.key, session_manager.working_directory, session_manager.instance_key)
+                job = task_queue.enqueue_call(func=render_latex, args=args)
+
         return jsonify({"hi": "there"})
 
 
@@ -141,4 +159,3 @@ def session_templates(session_id: str):
             handle.write(json.dumps({"text": text, "target": target, "data": data}))
 
         return jsonify(session.public["templates"]), 201
-

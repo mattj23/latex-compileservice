@@ -6,7 +6,9 @@ import tempfile
 from flask import Response, Request, Flask
 from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
+
 from latex.config import TestConfig
+from latex.session import Session
 
 from tests.test_sessions import find_test_asset_folder, hash_file
 
@@ -48,6 +50,18 @@ def fixture():
 
         element_key = f"session:{element.decode()}"
         redis_client.delete(element_key)
+
+
+def _create_session_add_file(fixture: TestFixture, target_file: str) -> Session:
+    data = {"compiler": "xelatex", "target": target_file}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session = session_manager.load_session(response.json["key"])
+
+    file_url = f"/api/sessions/{session.key}/files"
+    source_path = os.path.join(find_test_asset_folder(), target_file)
+    data2 = {"file0": (file_byte_stream(source_path), "test/" + target_file)}
+    response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
+    return session
 
 
 def test_api_root_endpoint_produces_expected(fixture: TestFixture):
@@ -109,15 +123,9 @@ def test_get_session_information(fixture: TestFixture):
 
 def test_add_file_to_session(fixture: TestFixture):
     target_file = "sample1.tex"
-    data = {"compiler": "xelatex", "target": target_file}
-    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
-    session = session_manager.load_session(response.json["key"])
+    session = _create_session_add_file(fixture, target_file)
 
-    file_url = f"/api/sessions/{session.key}/files"
     source_path = os.path.join(find_test_asset_folder(), target_file)
-    data2 = {"file0": (file_byte_stream(source_path), "test/" + target_file)}
-    response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
-
     expected_path = os.path.join(session.source_files.root_path, "test", target_file)
     assert hash_file(source_path) == hash_file(expected_path)
 
@@ -157,6 +165,11 @@ def test_add_template(fixture: TestFixture):
 
 
 def test_set_session_finalized(fixture: TestFixture):
+    session = _create_session_add_file(fixture, "sample1.tex")
+    finalize_url = f"/api/sessions/{session.key}"
+
+    response2 = fixture.client.post(finalize_url, json={"finalize": True}, follow_redirects=True)
+
     assert False
 
 

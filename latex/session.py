@@ -43,10 +43,12 @@
 """
 import json
 import uuid
-from redis import Redis
+from flask_redis import FlaskRedis
 from flask import Flask
 from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
+
+from typing import Callable
 
 
 def make_id():
@@ -69,6 +71,7 @@ class Session:
         self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
         self._file_service: FileService = kwargs["file_service"]
+        self._save_callback: Callable = kwargs["save_callback"]
 
         if not self._file_service.exists(Session._source_directory):
             self._file_service.makedirs(Session._source_directory)
@@ -82,6 +85,10 @@ class Session:
     def _redis_key(self):
         """ the prefixed key used by redis to store this session information """
         return to_key(self.key)
+
+    @property
+    def is_editable(self) -> bool:
+        return self.status == "editable"
 
     @property
     def files(self):
@@ -108,9 +115,16 @@ class Session:
                 "templates": self.templates,
                 "status": self.status}
 
+    def finalize(self):
+        if not self.is_editable:
+            raise ValueError("Session is no longer editable and so cannot be finalized")
+
+        self.status = "finalized"
+        self._save_callback(self)
+
 
 class SessionManager:
-    def __init__(self, redis_client: Redis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
+    def __init__(self, redis_client: FlaskRedis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
         self.time_service = time_service
         self.redis = redis_client
         self.working_directory = working_directory
@@ -139,7 +153,8 @@ class SessionManager:
             "compiler": compiler,
             "target": target,
             "status": "editable",
-            "file_service": self.root_file_service.create_from(key)
+            "file_service": self.root_file_service.create_from(key),
+            "save_callback": self.save_session
         }
         session = Session(**kwargs)
 
@@ -160,11 +175,12 @@ class SessionManager:
     def save_session(self, session: Session) -> None:
         self.redis.set(session._redis_key, json.dumps(session.public))
 
-    def load_session(self, key: str) -> Session:
-        data: bytes = self.redis.get(to_key(key))
+    def load_session(self, session_id: str) -> Session:
+        data: bytes = self.redis.get(to_key(session_id))
         if data is None:
             return None
 
         kwargs = json.loads(data.decode())
-        kwargs["file_service"] = self.root_file_service.create_from(key)
+        kwargs["file_service"] = self.root_file_service.create_from(session_id)
+        kwargs["save_callback"] = self.save_session
         return Session(**kwargs)

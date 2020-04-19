@@ -2,6 +2,11 @@ import uuid
 
 from flask import Flask
 from flask_redis import FlaskRedis
+
+from rq import Queue
+from rq.job import Job
+from latex.worker import redis_conn, QUEUE_NAME
+
 from latex.config import ConfigBase, ProductionConfig
 from latex.session import SessionManager
 from latex.services.time_service import TimeService
@@ -10,6 +15,7 @@ from latex.services.time_service import TimeService
 redis_client = FlaskRedis()
 time_service = TimeService()
 session_manager = SessionManager(redis_client, time_service)
+task_queue = Queue(QUEUE_NAME, connection=redis_conn)
 
 
 # Application factory method

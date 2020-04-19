@@ -1,14 +1,26 @@
 import os
 import subprocess
 from collections import namedtuple
-from session import Session
+from typing import Dict
+
+import redis
+from latex.config import ConfigBase
+from latex.services.time_service import TimeService
+from latex.session import Session, SessionManager
 
 COMPILERS = ['xelatex', 'pdflatex', 'lualatex']
 
 RenderResult = namedtuple('RenderResult', 'success product log')
 
 
-def render_latex(session: Session) -> RenderResult:
+def render_latex(session_id: str, working_directory: str, instance_key: str):
+    client = redis.from_url(ConfigBase.REDIS_URL)
+    manager = SessionManager(client, TimeService(), instance_key, working_directory)
+    session = manager.load_session(session_id)
+    _render_latex(session)
+
+
+def _render_latex(session: Session) -> RenderResult:
     if session.compiler not in COMPILERS:
         raise ValueError(f"compiler '{session.compiler}' not supported")
 
