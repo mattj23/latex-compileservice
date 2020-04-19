@@ -6,7 +6,7 @@ from flask_redis import FlaskRedis
 
 from rq import Queue
 from rq_scheduler import Scheduler
-from latex.worker import redis_conn, QUEUE_NAME
+from worker import redis_conn, QUEUE_NAME
 
 from latex.config import ConfigBase, ProductionConfig
 from latex.session import SessionManager, clear_expired_sessions

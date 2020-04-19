@@ -18,4 +18,4 @@ ENV LANG=C.UTF-8
 
 COPY ./ /var/www/app
 
-CMD ["python3", "/var/www/app/wsgi.py"]
+CMD /var/www/app/run.sh
