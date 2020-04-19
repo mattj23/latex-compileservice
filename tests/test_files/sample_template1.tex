@@ -1,0 +1,14 @@
+\documentclass{article}
+\begin{document}
+    \section{Render Template}
+    This is an example rendering template meant to be processed by the jinja template engine.
+
+    \section{\pyvar{name_1}}
+    \begin{itemize}
+        \pyblock{ for i in range(5) }
+        \item This is the \pyvar{i}-th item
+        \pyblock{ endfor }
+
+    \end{itemize}
+
+\end{document}

@@ -1,11 +1,12 @@
 import json
+from hashlib import md5
 
 from flask import current_app as app
 from flask import jsonify, url_for, redirect, request, Response
 from werkzeug.exceptions import BadRequest
 
 from latex import session_manager, task_queue
-from latex.rendering import render_latex
+from latex.rendering import compile_latex
 
 
 @app.route("/api", methods=["GET"])
@@ -108,7 +109,7 @@ def session_root(session_id: str):
                 if app.config["TESTING"]:
                     return jsonify(args)
                 else:
-                    job = task_queue.enqueue_call(func=render_latex, args=args)
+                    job = task_queue.enqueue_call(func=compile_latex, args=args)
 
         return jsonify({"hi": "there"})
 
@@ -167,7 +168,8 @@ def session_templates(session_id: str):
         if data is None or type(data) is not dict:
             raise BadRequest("Field 'data' must be supplied and be a valid dictionary")
 
-        with handle.template_files.open(target, "w") as file_handle:
+        md = md5(target.encode())
+        with handle.template_files.open(md.hexdigest(), "w") as file_handle:
             file_handle.write(json.dumps({"text": text, "target": target, "data": data}))
 
         return jsonify(handle.public["templates"]), 201

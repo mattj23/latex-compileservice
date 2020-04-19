@@ -9,7 +9,7 @@ from latex import create_app, time_service, session_manager, redis_client
 
 from latex.config import TestConfig
 from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT
-from latex.rendering import render_latex, RenderResult
+from latex.rendering import compile_latex, RenderResult
 from tests.test_sessions import find_test_asset_folder, hash_file
 
 
@@ -221,7 +221,7 @@ def test_not_editable_session_template_add_fails(fixture: TestFixture):
 def test_simple_rendering(fixture: TestFixture):
     session = create_session_add_file(fixture, "sample1.tex")
     queue_data = finalize_session(fixture, session)
-    result: RenderResult = render_latex(*queue_data)
+    result: RenderResult = compile_latex(*queue_data)
     assert result.product is not None
     assert os.path.exists(result.product)
     assert os.path.exists(result.log)
@@ -230,7 +230,7 @@ def test_simple_rendering(fixture: TestFixture):
 def test_simple_rendering_sets_complete(fixture: TestFixture):
     session = create_session_add_file(fixture, "sample1.tex")
     queue_data = finalize_session(fixture, session)
-    result: RenderResult = render_latex(*queue_data)
+    result: RenderResult = compile_latex(*queue_data)
 
     reloaded_session = session_manager.load_session(session.key)
     assert reloaded_session.status == SUCCESS_TEXT
