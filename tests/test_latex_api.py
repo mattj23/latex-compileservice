@@ -8,7 +8,7 @@ from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
 
 from latex.config import TestConfig
-from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT
+from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT, ERROR_TEXT
 from latex.rendering import compile_latex, RenderResult
 from tests.test_sessions import find_test_asset_folder, hash_file
 
@@ -218,6 +218,26 @@ def test_not_editable_session_template_add_fails(fixture: TestFixture):
     assert template_post_response.status_code == 403
 
 
+def test_log_not_found_before_rendering(fixture: TestFixture):
+    target_file = "sample1.tex"
+    session = create_session_add_file(fixture, target_file)
+    finalize_session(fixture, session)
+
+    log_url = f"/api/sessions/{session.key}/log"
+    response: Response = fixture.client.get(log_url, follow_redirects=True)
+    assert response.status_code == 404
+
+
+def test_product_not_found_before_rendering(fixture: TestFixture):
+    target_file = "sample1.tex"
+    session = create_session_add_file(fixture, target_file)
+    finalize_session(fixture, session)
+
+    product_url = f"/api/sessions/{session.key}/product"
+    response: Response = fixture.client.get(product_url, follow_redirects=True)
+    assert response.status_code == 404
+
+
 def test_simple_rendering(fixture: TestFixture):
     session = create_session_add_file(fixture, "sample1.tex")
     queue_data = finalize_session(fixture, session)
@@ -237,11 +257,33 @@ def test_simple_rendering_sets_complete(fixture: TestFixture):
     assert os.path.exists(reloaded_session.product)
     assert os.path.exists(reloaded_session.log)
 
-"""
+
 def test_successful_session_retrieve_product(fixture: TestFixture):
-    assert False
+    session = create_session_add_file(fixture, "sample1.tex")
+    queue_data = finalize_session(fixture, session)
+    compile_latex(*queue_data)
+
+    session_url = f"/api/sessions/{session.key}"
+    response: Response = fixture.client.get(session_url, follow_redirects=True)
+
+    product_url = response.json['product']['href']
+    product_fetch: Response = fixture.client.get(product_url, follow_redirects=True)
+
+    assert len(product_fetch.data) > 2000
 
 
 def test_failed_session_retrieve_logs(fixture: TestFixture):
-    assert False
-"""
+    session = create_session_add_file(fixture, "bad_sample1.tex")
+    queue_data = finalize_session(fixture, session)
+    compile_latex(*queue_data)
+
+    session_url = f"/api/sessions/{session.key}"
+    response: Response = fixture.client.get(session_url, follow_redirects=True)
+
+    assert response.json['status'] == ERROR_TEXT
+
+    log_url = response.json['log']['href']
+    log_fetch: Response = fixture.client.get(log_url, follow_redirects=True)
+
+    assert "LaTeX Error: File `notarealarticle.cls' not found." in log_fetch.data.decode()
+

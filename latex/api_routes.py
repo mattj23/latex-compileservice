@@ -2,8 +2,8 @@ import json
 from hashlib import md5
 
 from flask import current_app as app
-from flask import jsonify, url_for, redirect, request, Response
-from werkzeug.exceptions import BadRequest
+from flask import jsonify, url_for, redirect, request, Response, send_file
+from werkzeug.exceptions import BadRequest, NotFound
 
 from latex import session_manager, task_queue
 from latex.rendering import compile_latex
@@ -52,6 +52,30 @@ def get_sessions():
     return jsonify(session_handle.public), 201, {"location": created_location}
 
 
+@app.route("/api/sessions/<session_id>/product", methods=["GET"])
+def session_product(session_id: str):
+    handle = session_manager.load_session(session_id)
+    if handle is None:
+        return BadRequest(f"session {session_id} could not be found")
+
+    if handle.product is None:
+        return NotFound()
+
+    return send_file(handle.product)
+
+
+@app.route("/api/sessions/<session_id>/log", methods=["GET"])
+def session_log(session_id: str):
+    handle = session_manager.load_session(session_id)
+    if handle is None:
+        return BadRequest(f"session {session_id} could not be found")
+
+    if handle.log is None:
+        return NotFound()
+
+    return send_file(handle.log)
+
+
 @app.route("/api/sessions/<session_id>", methods=["GET", "POST"])
 def session_root(session_id: str):
     # Retrieve the session information
@@ -61,7 +85,15 @@ def session_root(session_id: str):
 
     # On a get request, we simply return the session information as we have it
     if request.method == "GET":
+        # The base response is the public session data
         response = dict(handle.public)
+
+        # If the session has a log or a product, we include a link to it
+        if handle.product is not None:
+            response['product'] = {"href": url_for(session_product.__name__, session_id=session_id)}
+        if handle.log is not None:
+            response['log'] = {"href": url_for(session_log.__name__, session_id=session_id)}
+
         form_info = {
             "add_file": {
                 "href": url_for(session_files.__name__, session_id=session_id),
@@ -110,8 +142,9 @@ def session_root(session_id: str):
                     return jsonify(args)
                 else:
                     job = task_queue.enqueue_call(func=compile_latex, args=args)
+                    return jsonify(handle.public), 202
 
-        return jsonify({"hi": "there"})
+        return BadRequest("POST data not understood")
 
 
 @app.route("/api/sessions/<session_id>/files", methods=["GET", "POST"])
