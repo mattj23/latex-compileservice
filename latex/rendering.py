@@ -18,6 +18,12 @@ def render_latex(session_id: str, working_directory: str, instance_key: str):
     manager = SessionManager(client, TimeService(), instance_key, working_directory)
     session = manager.load_session(session_id)
     result = _render_latex(session)
+
+    if result.success:
+        session.set_complete(result.product, result.log)
+    else:
+        session.set_errored(result.log)
+
     return result
 
 

@@ -8,7 +8,7 @@ from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
 
 from latex.config import TestConfig
-from latex.session import Session
+from latex.session import Session, FINALIZED_TEXT
 
 from tests.test_sessions import find_test_asset_folder, hash_file
 
@@ -24,7 +24,7 @@ class TestFixture:
         self.client: FlaskClient = None
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def fixture():
     with tempfile.TemporaryDirectory() as temp_path:
         config = TestConfig()
@@ -50,6 +50,12 @@ def fixture():
 
         element_key = f"session:{element.decode()}"
         redis_client.delete(element_key)
+
+
+def finalize_session(fixture: TestFixture, session: Session):
+    url = f"/api/sessions/{session.key}"
+    response = fixture.client.post(url, json={"finalize": True}, follow_redirects=True)
+    return response.json
 
 
 def create_session_add_file(fixture: TestFixture, target_file: str, prefix=None) -> Session:
@@ -170,28 +176,52 @@ def test_add_template(fixture: TestFixture):
 
 def test_set_session_finalized(fixture: TestFixture):
     session = create_session_add_file(fixture, "sample1.tex")
-    finalize_url = f"/api/sessions/{session.key}"
-
-    response2 = fixture.client.post(finalize_url, json={"finalize": True}, follow_redirects=True)
-
-    assert False
+    finalize_session(fixture, session)
+    reloaded_session = session_manager.load_session(session.key)
+    assert reloaded_session.status == FINALIZED_TEXT
 
 
 def test_not_editable_session_post_fails(fixture: TestFixture):
-    assert False
+    session = create_session_add_file(fixture, "sample1.tex")
+    finalize_session(fixture, session)
+
+    post_url = f"/api/sessions/{session.key}"
+    post_response: Response = fixture.client.post(post_url, json={"finalize": True}, follow_redirects=True)
+
+    assert post_response.status_code == 403
 
 
 def test_not_editable_session_file_add_fails(fixture: TestFixture):
-    assert False
+    target_file = "sample1.tex"
+    session = create_session_add_file(fixture, target_file)
+    finalize_session(fixture, session)
+    file_url = f"/api/sessions/{session.key}/files"
+    source_path = os.path.join(find_test_asset_folder(), target_file)
+    data2 = {"file0": (file_byte_stream(source_path), target_file)}
+    response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
+    assert response2.status_code == 403
 
 
 def test_not_editable_session_template_add_fails(fixture: TestFixture):
-    assert False
+    target_file = "sample1.tex"
+    session = create_session_add_file(fixture, target_file)
+    finalize_session(fixture, session)
 
+    data2 = {
+        "target": "test.tex",
+        "text": "this is the template text\n",
+        "data": {"test": "hello"}
+    }
 
+    template_url = f"/api/sessions/{session.key}/templates"
+    template_post_response: Response = fixture.client.post(template_url, json=data2, follow_redirects=True)
+    assert template_post_response.status_code == 403
+
+"""
 def test_successful_session_retrieve_product(fixture: TestFixture):
     assert False
 
 
 def test_failed_session_retrieve_logs(fixture: TestFixture):
     assert False
+"""

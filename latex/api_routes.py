@@ -1,7 +1,7 @@
 import json
 
 from flask import current_app as app
-from flask import jsonify, url_for, redirect, request
+from flask import jsonify, url_for, redirect, request, Response
 from werkzeug.exceptions import BadRequest
 
 from latex import session_manager, task_queue
@@ -100,6 +100,8 @@ def session_root(session_id: str):
 
             # Session finalization
             if request.json.get("finalize", False) == True:
+                if not handle.is_editable:
+                    return jsonify({"error": "session is not editable"}), 403
                 handle.finalize()
 
                 args = (handle.key, session_manager.working_directory, session_manager.instance_key)
@@ -114,38 +116,43 @@ def session_root(session_id: str):
 @app.route("/api/sessions/<session_id>/files", methods=["GET", "POST"])
 def session_files(session_id: str):
     # Retrieve the session information
-    session = session_manager.load_session(session_id)
-    if session is None:
+    handle = session_manager.load_session(session_id)
+    if handle is None:
         return BadRequest(f"session {session_id} could not be found")
 
     # On a get request, we simply return the session information as we have it
     if request.method == "GET":
-        return jsonify(session.public["files"])
+        return jsonify(handle.public["files"])
 
     # A post request allows files to be added to the session
     if request.method == "POST":
+        if not handle.is_editable:
+            return jsonify({"error": "session is not editable"}), 403
         for name, file_item in request.files.items():
-            with session.source_files.open(file_item.filename, "wb") as handle:
-                file_item.save(handle)
+            with handle.source_files.open(file_item.filename, "wb") as file_handle:
+                file_item.save(file_handle)
 
-        return jsonify(session.public["files"]), 201
+        return jsonify(handle.public["files"]), 201
 
 
 @app.route("/api/sessions/<session_id>/templates", methods=["GET", "POST"])
 def session_templates(session_id: str):
     # Retrieve the session information
-    session = session_manager.load_session(session_id)
-    if session is None:
+    handle = session_manager.load_session(session_id)
+    if handle is None:
         return BadRequest(f"session {session_id} could not be found")
 
     # On a get request, we simply return the session information as we have it
     if request.method == "GET":
-        return jsonify(session.public["templates"])
+        return jsonify(handle.public["templates"])
 
     # A post request allows files to be added to the session
     if request.method == "POST":
         if not request.is_json or not type(request.json) is dict:
             raise BadRequest("post data must be json dictionary")
+
+        if not handle.is_editable:
+            return jsonify({"error": "session is not editable"}), 403
 
         text = request.json.get("text", None)
         target = request.json.get("target", None)
@@ -160,7 +167,7 @@ def session_templates(session_id: str):
         if data is None or type(data) is not dict:
             raise BadRequest("Field 'data' must be supplied and be a valid dictionary")
 
-        with session.template_files.open(target, "w") as handle:
-            handle.write(json.dumps({"text": text, "target": target, "data": data}))
+        with handle.template_files.open(target, "w") as file_handle:
+            file_handle.write(json.dumps({"text": text, "target": target, "data": data}))
 
-        return jsonify(session.public["templates"]), 201
+        return jsonify(handle.public["templates"]), 201

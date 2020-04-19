@@ -51,6 +51,12 @@ from latex.services.file_service import FileService
 from typing import Callable
 
 
+EDITABLE_TEXT = "editable"
+FINALIZED_TEXT = "finalized"
+SUCCESS_TEXT = "success"
+ERROR_TEXT = "error"
+
+
 def make_id():
     return str(uuid.uuid4()).replace("-", "")[:16]
 
@@ -72,6 +78,8 @@ class Session:
         self.status: str = kwargs["status"]
         self._file_service: FileService = kwargs["file_service"]
         self._save_callback: Callable = kwargs["save_callback"]
+        self.product: str = kwargs.get("product", None)
+        self.log: str = kwargs.get("log", None)
 
         if not self._file_service.exists(Session._source_directory):
             self._file_service.makedirs(Session._source_directory)
@@ -88,7 +96,7 @@ class Session:
 
     @property
     def is_editable(self) -> bool:
-        return self.status == "editable"
+        return self.status == EDITABLE_TEXT
 
     @property
     def files(self):
@@ -113,13 +121,38 @@ class Session:
                 "target": self.target,
                 "files": self.files,
                 "templates": self.templates,
-                "status": self.status}
+                "status": self.status
+                }
+
+    @property
+    def all_data(self):
+        data = self.public
+        data["product"] = self.product
+        data["log"] = self.log
+        return data
 
     def finalize(self):
         if not self.is_editable:
             raise ValueError("Session is no longer editable and so cannot be finalized")
 
-        self.status = "finalized"
+        self.status = FINALIZED_TEXT
+        self._save_callback(self)
+
+    def set_complete(self, product, log):
+        if self.status != FINALIZED_TEXT:
+            raise ValueError("Session must be finalized in order to be set to complete")
+
+        self.product = product
+        self.log = log
+        self.status = SUCCESS_TEXT
+        self._save_callback(self)
+
+    def set_errored(self, log):
+        if self.status != FINALIZED_TEXT:
+            raise ValueError("Session must be finalized in order to be set to error")
+
+        self.log = log
+        self.status = ERROR_TEXT
         self._save_callback(self)
 
 
@@ -152,7 +185,7 @@ class SessionManager:
             "created": self.time_service.now,
             "compiler": compiler,
             "target": target,
-            "status": "editable",
+            "status": EDITABLE_TEXT,
             "file_service": self.root_file_service.create_from(key),
             "save_callback": self.save_session
         }
@@ -173,7 +206,7 @@ class SessionManager:
         self.redis.srem(self.instance_key, session.key)
 
     def save_session(self, session: Session) -> None:
-        self.redis.set(session._redis_key, json.dumps(session.public))
+        self.redis.set(session._redis_key, json.dumps(session.all_data))
 
     def load_session(self, session_id: str) -> Session:
         data: bytes = self.redis.get(to_key(session_id))
