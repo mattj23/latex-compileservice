@@ -7,7 +7,7 @@ import pytest
 import redis
 
 from latex.config import TestConfig
-from latex.session import Session, SessionManager, to_key
+from latex.session import Session, SessionManager, to_key, clear_expired_sessions
 from latex.services.time_service import TimeService, TestClock
 
 redis_url_pattern = re.compile(r"redis:\/\/:(\S*)@(\S+):(\d+)\/(\d+)")
@@ -37,6 +37,7 @@ class TestFixture:
         self.instance: str = kwargs.get("instance", unique_key())
         self.manager: SessionManager = kwargs.get("manager", None)
         self.clock: TestClock = kwargs.get("test_clock", None)
+        self.time_service: TimeService = kwargs.get("time_service", None)
 
 
 @pytest.fixture(scope="function")
@@ -65,7 +66,8 @@ def fixture() -> TestFixture:
         fixture = TestFixture(client=client,
                               manager=manager,
                               instance=instance_key,
-                              test_clock=clock)
+                              test_clock=clock,
+                              time_service=time_service)
         yield fixture
 
     # Clean up any keys in the instance list, if it's still there
@@ -169,4 +171,42 @@ def test_session_deleted_is_gone_from_instance_list(fixture: TestFixture):
     assert not fixture.client.sismember(fixture.instance, original.key)
 
 
+def test_clear_expired_sessions_leaves_non_expired(fixture: TestFixture):
+    """ Tests that sessions which have been alive for less than the SESSION_TTL_SEC
+    value are not cleared by the clearing function """
+    sessions = []
+    for i in range(3):
+        fixture.clock.set_time(i * 60)
+        sessions.append(fixture.manager.create_session("xelatex", "sample1.tex"))
 
+    fixture.clock.set_time(4 * 60)
+
+    clear_expired_sessions(fixture.manager.working_directory,
+                           fixture.manager.instance_key,
+                           time_service=fixture.time_service)
+    for s in sessions:
+        loaded = fixture.manager.load_session(s.key)
+        assert loaded is not None
+        assert loaded.key == s.key
+
+
+def test_clear_expired_sessions_clears_expired(fixture: TestFixture):
+    """ Tests that sessions which have been alive for more than the SESSION_TTL_SEC
+    value are cleared by the clearing function """
+    sessions = []
+    for i in range(8):
+        fixture.clock.set_time(i * 60)
+        sessions.append(fixture.manager.create_session("xelatex", "sample1.tex"))
+
+    alive_time = TestConfig().SESSION_TTL_SEC
+
+    clear_expired_sessions(fixture.manager.working_directory,
+                           fixture.manager.instance_key,
+                           time_service=fixture.time_service)
+    for s in sessions:
+        loaded = fixture.manager.load_session(s.key)
+        if fixture.clock.now - s.created > alive_time:
+            assert loaded is None
+        else:
+            assert loaded is not None
+            assert loaded.key == s.key

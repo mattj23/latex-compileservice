@@ -43,12 +43,14 @@
 """
 import json
 import uuid
+import redis
 from flask_redis import FlaskRedis
 from flask import Flask
+from latex.config import ConfigBase
 from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
 
-from typing import Callable
+from typing import Callable, List, Set
 
 
 EDITABLE_TEXT = "editable"
@@ -217,3 +219,25 @@ class SessionManager:
         kwargs["file_service"] = self.root_file_service.create_from(session_id)
         kwargs["save_callback"] = self.save_session
         return Session(**kwargs)
+
+    def get_all_session_ids(self) -> Set[str]:
+        data = self.redis.smembers(self.instance_key)
+        return set(d.decode() for d in data)
+
+
+def clear_expired_sessions(working_directory: str, instance_key: str, **kwargs):
+    """
+    Go through and clear the data for any expired sessions
+    :param working_directory:
+    :param instance_key:
+    :return:
+    """
+    time_service = kwargs.get("time_service", TimeService())
+    redis_client = redis.from_url(ConfigBase.REDIS_URL)
+    manager = SessionManager(redis_client, time_service, instance_key, working_directory)
+
+    for session_id in manager.get_all_session_ids():
+        session = manager.load_session(session_id)
+        if time_service.now - session.created > ConfigBase.SESSION_TTL_SEC:
+            manager.delete_session(session)
+
