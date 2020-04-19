@@ -8,8 +8,8 @@ from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
 
 from latex.config import TestConfig
-from latex.session import Session, FINALIZED_TEXT
-
+from latex.session import Session, FINALIZED_TEXT, SUCCESS_TEXT
+from latex.rendering import render_latex, RenderResult
 from tests.test_sessions import find_test_asset_folder, hash_file
 
 
@@ -216,6 +216,26 @@ def test_not_editable_session_template_add_fails(fixture: TestFixture):
     template_url = f"/api/sessions/{session.key}/templates"
     template_post_response: Response = fixture.client.post(template_url, json=data2, follow_redirects=True)
     assert template_post_response.status_code == 403
+
+
+def test_simple_rendering(fixture: TestFixture):
+    session = create_session_add_file(fixture, "sample1.tex")
+    queue_data = finalize_session(fixture, session)
+    result: RenderResult = render_latex(*queue_data)
+    assert result.product is not None
+    assert os.path.exists(result.product)
+    assert os.path.exists(result.log)
+
+
+def test_simple_rendering_sets_complete(fixture: TestFixture):
+    session = create_session_add_file(fixture, "sample1.tex")
+    queue_data = finalize_session(fixture, session)
+    result: RenderResult = render_latex(*queue_data)
+
+    reloaded_session = session_manager.load_session(session.key)
+    assert reloaded_session.status == SUCCESS_TEXT
+    assert os.path.exists(reloaded_session.product)
+    assert os.path.exists(reloaded_session.log)
 
 """
 def test_successful_session_retrieve_product(fixture: TestFixture):
