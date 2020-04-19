@@ -7,6 +7,8 @@ services:
       - LC_ALL=C.UTF-8
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
+      - FLASK_ENV=development
+      - DEBUG=True
     ports:
       - "5000:5000"
     volumes:

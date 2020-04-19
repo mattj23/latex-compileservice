@@ -12,6 +12,25 @@ from latex.config import ConfigBase, ProductionConfig
 from latex.session import SessionManager, clear_expired_sessions
 from latex.services.time_service import TimeService
 
+import logging
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://sys.stdout',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
 # Globally accessible instances go here
 redis_client = FlaskRedis()
 time_service = TimeService()
@@ -33,6 +52,12 @@ def create_app(config_data: ConfigBase = None) -> Flask:
         app.config.from_object(ProductionConfig())
     else:
         app.config.from_object(config_data)
+
+    # Write the environmental variables out to the log
+    env_output = ["Environmental Variables:"]
+    for k, v in app.config.items():
+        env_output.append(f"  - {k}={v}")
+    logging.info("\n".join(env_output))
 
     # Set up the internal services
     redis_client.init_app(app)
