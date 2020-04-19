@@ -3,7 +3,8 @@ import io
 import shutil
 import pytest
 import tempfile
-from flask import Response, Request
+from flask import Response, Request, Flask
+from flask.testing import FlaskClient
 from latex import create_app, time_service, session_manager, redis_client
 from latex.config import TestConfig
 
@@ -17,8 +18,8 @@ def file_byte_stream(file_path):
 
 class TestFixture:
     def __init__(self, **kwargs):
-        self.app = create_app(kwargs['config'])
-        self.client = None
+        self.app: Flask = create_app(kwargs['config'])
+        self.client: FlaskClient = None
 
 
 @pytest.fixture(scope="module")
@@ -49,51 +50,51 @@ def fixture():
         redis_client.delete(element_key)
 
 
-def test_api_root_endpoint_produces_expected(fixture):
+def test_api_root_endpoint_produces_expected(fixture: TestFixture):
     response: Response = fixture.client.get("/api", follow_redirects=True)
     assert response.is_json
     assert type(response.json) is dict
     assert "create_session" in response.json.keys()
 
 
-def test_session_endpoint_routes_correctly(fixture):
+def test_session_endpoint_routes_correctly(fixture: TestFixture):
     response: Response = fixture.client.get("/api/sessions", follow_redirects=True)
     assert response.status_code == 200
 
 
-def test_post_session_fails_if_not_json(fixture):
+def test_post_session_fails_if_not_json(fixture: TestFixture):
     data = "text data"
     response: Response = fixture.client.post("/api/sessions", data=data, follow_redirects=True)
     assert response.status_code == 400
 
 
-def test_post_session_fails_if_missing_compiler(fixture):
+def test_post_session_fails_if_missing_compiler(fixture: TestFixture):
     data = {"target": "test.tex"}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.status_code == 400
 
 
-def test_post_session_fails_if_missing_target(fixture):
+def test_post_session_fails_if_missing_target(fixture: TestFixture):
     data = {"compiler": "pdflatex" }
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.status_code == 400
 
 
-def test_post_session_creates_new_session(fixture):
+def test_post_session_creates_new_session(fixture: TestFixture):
     data = {"compiler": "pdflatex", "target": "test.tex"}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.json["status"] == "editable"
     assert response.status_code == 201
 
 
-def test_create_session_has_timestamp(fixture):
+def test_create_session_has_timestamp(fixture: TestFixture):
     data = {"compiler": "pdflatex", "target": "test.tex"}
     time_service.test.set_time(24601)
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.json["created"] == 24601
 
 
-def test_get_session_information(fixture):
+def test_get_session_information(fixture: TestFixture):
     data = {"compiler": "pdflatex", "target": "test5.tex"}
     time_service.test.set_time(24601)
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
@@ -106,7 +107,7 @@ def test_get_session_information(fixture):
     assert response2.json["created"] == 24601
 
 
-def test_add_file_to_session(fixture):
+def test_add_file_to_session(fixture: TestFixture):
     target_file = "sample1.tex"
     data = {"compiler": "xelatex", "target": target_file}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
@@ -121,7 +122,7 @@ def test_add_file_to_session(fixture):
     assert hash_file(source_path) == hash_file(expected_path)
 
 
-def test_get_template_form_url(fixture):
+def test_get_template_form_url(fixture: TestFixture):
     data = {"compiler": "xelatex", "target": "test.tex"}
     post_response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     session_url = post_response.location
@@ -133,7 +134,7 @@ def test_get_template_form_url(fixture):
     assert "add_templates" in get_response.json.keys()
 
 
-def test_add_template(fixture):
+def test_add_template(fixture: TestFixture):
     data = {"compiler": "xelatex", "target": "test.tex"}
     post_response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     session_url = post_response.location
@@ -155,25 +156,25 @@ def test_add_template(fixture):
     assert template_post_response.json["test.tex"]["data"] == data2["data"]
 
 
-def test_set_session_finalized(fixture):
+def test_set_session_finalized(fixture: TestFixture):
     assert False
 
 
-def test_not_editable_session_post_fails(fixture):
+def test_not_editable_session_post_fails(fixture: TestFixture):
     assert False
 
 
-def test_not_editable_session_file_add_fails(fixture):
+def test_not_editable_session_file_add_fails(fixture: TestFixture):
     assert False
 
 
-def test_not_editable_session_template_add_fails(fixture):
+def test_not_editable_session_template_add_fails(fixture: TestFixture):
     assert False
 
 
-def test_successful_session_retrieve_product(fixture):
+def test_successful_session_retrieve_product(fixture: TestFixture):
     assert False
 
 
-def test_failed_session_retrieve_logs(fixture):
+def test_failed_session_retrieve_logs(fixture: TestFixture):
     assert False
