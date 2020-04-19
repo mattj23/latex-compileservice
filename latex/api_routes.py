@@ -7,6 +7,7 @@ from werkzeug.exceptions import BadRequest
 from latex import session_manager, task_queue
 from latex.rendering import render_latex
 
+
 @app.route("/api", methods=["GET"])
 def api_home():
     form = {
@@ -100,8 +101,12 @@ def session_root(session_id: str):
             # Session finalization
             if request.json.get("finalize", False) == True:
                 handle.finalize()
+
                 args = (handle.key, session_manager.working_directory, session_manager.instance_key)
-                job = task_queue.enqueue_call(func=render_latex, args=args)
+                if app.config["TESTING"]:
+                    return jsonify(args)
+                else:
+                    job = task_queue.enqueue_call(func=render_latex, args=args)
 
         return jsonify({"hi": "there"})
 

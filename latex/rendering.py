@@ -17,7 +17,8 @@ def render_latex(session_id: str, working_directory: str, instance_key: str):
     client = redis.from_url(ConfigBase.REDIS_URL)
     manager = SessionManager(client, TimeService(), instance_key, working_directory)
     session = manager.load_session(session_id)
-    _render_latex(session)
+    result = _render_latex(session)
+    return result
 
 
 def _render_latex(session: Session) -> RenderResult:
@@ -35,17 +36,17 @@ def _render_latex(session: Session) -> RenderResult:
     expected_log = None     # prevent linting ref-before-assignment warning
     while run_count < 5:
         # Run the compiler
-        process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=session.directory)
+        process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=session.source_files.root_path)
         process.wait()
         run_count += 1
 
         # Check the log file to determine if a re-run is necessary
-        expected_log = os.path.join(session.directory, f"{session.key}.log")
+        expected_log = os.path.join(session.source_files.root_path, f"{session.key}.log")
         with open(expected_log, "r") as handle:
             if "Rerun" not in handle.read():
                 break
 
-    expected_product = os.path.join(session.directory, f"{session.key}.pdf")
+    expected_product = os.path.join(session.source_files.root_path, f"{session.key}.pdf")
 
     if os.path.exists(expected_product):
         return RenderResult(success=True, product=expected_product, log=expected_log)

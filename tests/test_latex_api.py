@@ -52,14 +52,18 @@ def fixture():
         redis_client.delete(element_key)
 
 
-def _create_session_add_file(fixture: TestFixture, target_file: str) -> Session:
+def create_session_add_file(fixture: TestFixture, target_file: str, prefix=None) -> Session:
     data = {"compiler": "xelatex", "target": target_file}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     session = session_manager.load_session(response.json["key"])
 
     file_url = f"/api/sessions/{session.key}/files"
     source_path = os.path.join(find_test_asset_folder(), target_file)
-    data2 = {"file0": (file_byte_stream(source_path), "test/" + target_file)}
+    if prefix:
+        dest = os.path.join(prefix, target_file)
+    else:
+        dest = target_file
+    data2 = {"file0": (file_byte_stream(source_path), dest)}
     response2: Response = fixture.client.post(file_url, data=data2, follow_redirects=True, content_type="multipart/form-data")
     return session
 
@@ -123,7 +127,7 @@ def test_get_session_information(fixture: TestFixture):
 
 def test_add_file_to_session(fixture: TestFixture):
     target_file = "sample1.tex"
-    session = _create_session_add_file(fixture, target_file)
+    session = create_session_add_file(fixture, target_file, prefix="test")
 
     source_path = os.path.join(find_test_asset_folder(), target_file)
     expected_path = os.path.join(session.source_files.root_path, "test", target_file)
@@ -165,7 +169,7 @@ def test_add_template(fixture: TestFixture):
 
 
 def test_set_session_finalized(fixture: TestFixture):
-    session = _create_session_add_file(fixture, "sample1.tex")
+    session = create_session_add_file(fixture, "sample1.tex")
     finalize_url = f"/api/sessions/{session.key}"
 
     response2 = fixture.client.post(finalize_url, json={"finalize": True}, follow_redirects=True)
