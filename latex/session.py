@@ -72,10 +72,20 @@
 """
 import json
 import uuid
-from redis import Redis
+import redis
+from flask_redis import FlaskRedis
 from flask import Flask
+from latex.config import ConfigBase
 from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
+
+from typing import Callable, List, Set
+
+
+EDITABLE_TEXT = "editable"
+FINALIZED_TEXT = "finalized"
+SUCCESS_TEXT = "success"
+ERROR_TEXT = "error"
 
 
 def make_id():
@@ -98,14 +108,17 @@ class Session:
         self.created: float = kwargs["created"]
         self.status: str = kwargs["status"]
         self._file_service: FileService = kwargs["file_service"]
+        self._save_callback: Callable = kwargs["save_callback"]
+        self.product: str = kwargs.get("product", None)
+        self.log: str = kwargs.get("log", None)
 
         if not self._file_service.exists(Session._source_directory):
             self._file_service.makedirs(Session._source_directory)
         if not self._file_service.exists(Session._template_directory):
             self._file_service.makedirs(Session._template_directory)
 
-        self.sources = self._file_service.create_from(Session._source_directory)
-        self.templates = self._file_service.create_from(Session._template_directory)
+        self.source_files = self._file_service.create_from(Session._source_directory)
+        self.template_files = self._file_service.create_from(Session._template_directory)
 
     @property
     def _redis_key(self):
@@ -113,8 +126,23 @@ class Session:
         return to_key(self.key)
 
     @property
+    def is_editable(self) -> bool:
+        return self.status == EDITABLE_TEXT
+
+    @property
     def files(self):
-        return self.sources.get_all_files(".")
+        return self.source_files.get_all_files(".")
+
+    @property
+    def templates(self):
+        files = self.template_files.get_all_files(".")
+        template_data = {}
+        for f in files:
+            with self.template_files.open(f, "r") as handle:
+                data = json.loads(handle.read())
+                if "target" in data.keys():
+                    template_data[data["target"]] = data
+        return template_data
 
     @property
     def public(self):
@@ -123,11 +151,44 @@ class Session:
                 "compiler": self.compiler,
                 "target": self.target,
                 "files": self.files,
-                "status": self.status}
+                "templates": self.templates,
+                "status": self.status
+                }
+
+    @property
+    def all_data(self):
+        data = self.public
+        data["product"] = self.product
+        data["log"] = self.log
+        return data
+
+    def finalize(self):
+        if not self.is_editable:
+            raise ValueError("Session is no longer editable and so cannot be finalized")
+
+        self.status = FINALIZED_TEXT
+        self._save_callback(self)
+
+    def set_complete(self, product, log):
+        if self.status != FINALIZED_TEXT:
+            raise ValueError("Session must be finalized in order to be set to complete")
+
+        self.product = product
+        self.log = log
+        self.status = SUCCESS_TEXT
+        self._save_callback(self)
+
+    def set_errored(self, log):
+        if self.status != FINALIZED_TEXT:
+            raise ValueError("Session must be finalized in order to be set to error")
+
+        self.log = log
+        self.status = ERROR_TEXT
+        self._save_callback(self)
 
 
 class SessionManager:
-    def __init__(self, redis_client: Redis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
+    def __init__(self, redis_client: FlaskRedis, time_service: TimeService, instance_key: str=None, working_directory: str=None):
         self.time_service = time_service
         self.redis = redis_client
         self.working_directory = working_directory
@@ -155,8 +216,9 @@ class SessionManager:
             "created": self.time_service.now,
             "compiler": compiler,
             "target": target,
-            "status": "editable",
-            "file_service": self.root_file_service.create_from(key)
+            "status": EDITABLE_TEXT,
+            "file_service": self.root_file_service.create_from(key),
+            "save_callback": self.save_session
         }
         session = Session(**kwargs)
 
@@ -175,13 +237,36 @@ class SessionManager:
         self.redis.srem(self.instance_key, session.key)
 
     def save_session(self, session: Session) -> None:
-        self.redis.set(session._redis_key, json.dumps(session.public))
+        self.redis.set(session._redis_key, json.dumps(session.all_data))
 
-    def load_session(self, key: str) -> Session:
-        data: bytes = self.redis.get(to_key(key))
+    def load_session(self, session_id: str) -> Session:
+        data: bytes = self.redis.get(to_key(session_id))
         if data is None:
             return None
 
         kwargs = json.loads(data.decode())
-        kwargs["file_service"] = self.root_file_service.create_from(key)
+        kwargs["file_service"] = self.root_file_service.create_from(session_id)
+        kwargs["save_callback"] = self.save_session
         return Session(**kwargs)
+
+    def get_all_session_ids(self) -> Set[str]:
+        data = self.redis.smembers(self.instance_key)
+        return set(d.decode() for d in data)
+
+
+def clear_expired_sessions(working_directory: str, instance_key: str, **kwargs):
+    """
+    Go through and clear the data for any expired sessions
+    :param working_directory:
+    :param instance_key:
+    :return:
+    """
+    time_service = kwargs.get("time_service", TimeService())
+    redis_client = redis.from_url(ConfigBase.REDIS_URL)
+    manager = SessionManager(redis_client, time_service, instance_key, working_directory)
+
+    for session_id in manager.get_all_session_ids():
+        session = manager.load_session(session_id)
+        if time_service.now - session.created > ConfigBase.SESSION_TTL_SEC:
+            manager.delete_session(session)
+

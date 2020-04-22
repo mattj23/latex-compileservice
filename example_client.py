@@ -1,5 +1,4 @@
-import requests 
-import os 
+import os
 import json 
 
 uploads = ["test.tex", "test2.tex", "logo.png"]

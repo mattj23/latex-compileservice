@@ -1,0 +1,23 @@
+\documentclass{article}
+\begin{document}
+    \section{Render Template}
+    This is an example rendering template meant to be processed by the jinja template engine.
+
+    \section{\EXPR{name_1}}
+    \begin{itemize}
+        \BLOCK{ for i in range(5) }
+        \item This is the \EXPR{i+1}-th item
+        \BLOCK{ endfor }
+
+    \end{itemize}
+
+    \#{The contents of this block should be removed}
+
+    \section{\EXPR{data2.name + " Addition"}}
+    \begin{itemize}
+        \BLOCK{ for value in data2['items'] }
+        \item Item \EXPR{value}
+        \BLOCK{ endfor }
+    \end{itemize}
+
+\end{document}

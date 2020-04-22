@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - FLASK_ENV=development
+      - DEBUG=True
+    ports:
+      - "5000:5000"
+    volumes:
+      - latex-working:/working
+    depends_on:
+      - redis
+      - worker
+
+  worker:
+    build: .
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - IS_WORKER=1
+    volumes:
+      - latex-working:/working
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:5
+
+volumes:
+  latex-working:
