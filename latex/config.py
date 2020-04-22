@@ -9,6 +9,7 @@ class ConfigBase:
     WORKING_DIRECTORY = os.environ.get("WORKING_DIRECTORY") or "/working"
     SESSION_TTL_SEC = os.environ.get("SESSION_TTL_SEC") or 60 * 5
     CLEAR_EXPIRED_INTERVAL_SEC = os.environ.get("CLEAR_EXPIRED_INTERVAL_SEC") or 60
+    SERVER_NAME = os.environ.get("SERVER_NAME") or "127.0.0.1:5000"
 
 
 class ProductionConfig(ConfigBase):

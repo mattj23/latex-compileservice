@@ -3,12 +3,11 @@ FROM ubuntu:bionic
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qy --no-install-recommends \
     texlive-full \
     python-pygments gnuplot \
-    make git
+    make git python3 python3-pip
 
 COPY requirements.txt ./requirements.txt
 
-RUN apt-get install python3 python3-pip -y && \
-    python3 -m pip install -r requirements.txt
+RUN python3 -m pip install -r requirements.txt
 
 RUN mkdir /working && \
     mkdir -p /var/www/app
