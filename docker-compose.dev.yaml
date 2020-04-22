@@ -1,6 +1,11 @@
+# This is a development deployment for the application.  It has a single worker container and contains a definition for
+# a redis server.  The Flask application is set to debug and the environment to development.
 version: '3'
 
 services:
+  # This is the Flask application itself, which depends on both the redis server and the worker. There only needs
+  # to be one of these containers deployed.  In order to share files with the worker(s), a common volume is mounted
+  # to /working, which is where the Flask application will store files uploaded to it.
   web:
     build: .
     environment:
@@ -17,6 +22,11 @@ services:
       - redis
       - worker
 
+  # This is the worker container, which is the same image but run with the IS_WORKER environmental variable set to 1,
+  # which causes the container to launch the python rq worker process instead of the Flask application.  If being
+  # deployed in swarm mode, 'replicas' can be used to set the number of copies, but otherwise you may simply need to
+  # make multiple workers here if you want to run more than one worker per Flask app.  Multiple workers is likely
+  # to only be necessary if there are many long compilation time sessions being performed.
   worker:
     build: .
     environment:
@@ -29,8 +39,13 @@ services:
     depends_on:
       - redis
 
+  # The Flask application and the workers communicate with each other via redis, and the Flask app uses redis to store
+  # the non-file information uploaded by consumers of the service.  One redis server should be capable of servicing
+  # many replicas of the compile service, so it is reasonable to use an external redis server in place of this one
   redis:
     image: redis:5
 
+# The Flask application saves file data to a local folders in /working, so the workers need access to that data to
+# perform the compilation task.  This is accomplished by having a volume shared by the two containers.
 volumes:
   latex-working:
