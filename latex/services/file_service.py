@@ -1,5 +1,8 @@
 """
-    The file service abstracts interactions with the OS to allow for testing
+    The FileService abstracts interactions with the OS to allow for the handling of relative and absolute paths
+    without allowing access to file system locations that are not contained by the root path. A FileService can also
+    spawn a new FileService in one of its child locations.
+
 """
 
 import os

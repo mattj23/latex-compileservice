@@ -1,4 +1,13 @@
 """
+    Sessions / SessionManager
+    ==================================
+    Sessions are conceptual structures used to represent the task of generating compiled LaTeX documents, and the
+    SessionManager is an object which manages access to and the lifecycle of individual sessions.  See the sections
+    below for more information.
+
+
+    Sessions
+    ==================================
     A Session is a single compilation/rendering task aimed at producing a single product, created by a single client.
     The session consists of a set of input files, some of which may be unrendered Jinja2 templates, a compiler, a root
     target for the compiler, a status, a timestamp, and products.
@@ -12,15 +21,20 @@
             +-- {session unique key}
                 |
                 +-- source
+                |     + file1.png
+                |     + file2.tex
+                |     + sub_folder/file3.tex
+                |     + ...
                 |
                 +-- templates
-                |
-                +-- info.json
+                      + template1.json
+                      + template2.json
+                      + ...
 
     At this point files can be put into the "source" folder, templates and their render data can be put into the
-    templates folder, and info.json can be updated.
+    templates folder.
 
-    Templates consist of three portions:
+    Templates consist of three portions, which are all stored together in a json file:
         1.  A file content, which is a text file that will be run through the Jinja2 templating engine to produce
             a .tex file
         2.  A destination path, which is where the .tex file will be placed in the "source" directory after it is
@@ -39,6 +53,21 @@
     2. finalized - the session is finalized, and can no longer be edited; a worker will pick it up when it can
     3. success - the session was compiled successfully, and the product is available to retrieve
     4. error - the session did not complete successfully, but the log files can be retrieved for debugging
+
+
+    The SessionManager
+    ==================================
+    The SessionManager controls access to individual sessions and is responsible for their creation, deletion, and
+    persistence.  All such lifecycle actions on a Session should be done through the SessionManager, as Sessions should
+    not be directly created or deleted using the Session class itself.
+
+    The SessionManager is an object available globally to the app.  It requires access to a Redis client for the
+    storing of the Session metadata, and a FileService object for persistence of source files and template data.
+
+    Of one last note is the instance_key, which is a string which is uniquely generated during app startup. The
+    SessionManager keeps a set of session keys stored in Redis under the instance key, in order to allow multiple
+    instances of the application to store a single Redis server, if desired.  When the instance is disposed, all
+    session keys linked to it could theoretically be removed.
 
 """
 import json
