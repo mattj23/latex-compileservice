@@ -64,7 +64,7 @@ def get_sessions():
     session_handle = session_manager.create_session(compiler, target)
 
     created_location = url_for(session_root.__name__, session_id=session_handle.key)
-    return jsonify(session_handle.public), 201, {"location": created_location}
+    return redirect(created_location), 201, {"location": created_location}
 
 
 @app.route("/api/sessions/<session_id>/product", methods=["GET"])
