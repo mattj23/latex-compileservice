@@ -18,7 +18,7 @@ def api_home():
             "rel": ["create-form"],
             "method": "POST",
             "value": [
-                {"name": "compiler", "required": True, "label": "compiler, use 'xelatex' or 'pdflatex'"},
+                {"name": "compiler", "required": True, "label": "compiler, use 'xelatex', 'pdflatex', or 'lualatex'"},
                 {"name": "target", "required": True, "label": "main target file to run through the compiler"}
             ]
         }
