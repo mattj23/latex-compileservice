@@ -1,4 +1,5 @@
 import os
+import uuid
 
 
 class ConfigBase:
@@ -9,6 +10,7 @@ class ConfigBase:
     WORKING_DIRECTORY = os.environ.get("WORKING_DIRECTORY") or "/working"
     SESSION_TTL_SEC = os.environ.get("SESSION_TTL_SEC") or 60 * 5
     CLEAR_EXPIRED_INTERVAL_SEC = os.environ.get("CLEAR_EXPIRED_INTERVAL_SEC") or 60
+    INSTANCE_KEY = os.environ.get("INSTANCE_KEY") or "latex-compile-service"
 
 
 class ProductionConfig(ConfigBase):
@@ -22,4 +24,5 @@ class DevelopmentConfig(ConfigBase):
 class TestConfig(ConfigBase):
     DEBUG = True
     TESTING = True
+    INSTANCE_KEY = str(uuid.uuid4()).replace("-", "")[:10]
 

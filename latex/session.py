@@ -81,6 +81,7 @@ from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
 
 from typing import Callable, List, Set
+import logging
 
 
 EDITABLE_TEXT = "editable"
@@ -262,6 +263,8 @@ def clear_expired_sessions(working_directory: str, instance_key: str, **kwargs):
     :param instance_key:
     :return:
     """
+    logging.info("Clearing expired sessions")
+
     time_service = kwargs.get("time_service", TimeService())
     redis_client = redis.from_url(ConfigBase.REDIS_URL)
     manager = SessionManager(redis_client, time_service, instance_key, working_directory)
@@ -269,5 +272,6 @@ def clear_expired_sessions(working_directory: str, instance_key: str, **kwargs):
     for session_id in manager.get_all_session_ids():
         session = manager.load_session(session_id)
         if time_service.now - session.created > ConfigBase.SESSION_TTL_SEC:
+            logging.info("Removing session %s", session.key)
             manager.delete_session(session)
 

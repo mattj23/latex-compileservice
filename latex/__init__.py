@@ -1,9 +1,9 @@
-import os
 import uuid
-from datetime import datetime
+from datetime import timedelta
 
 from flask import Flask
 from flask_redis import FlaskRedis
+
 from celery import Celery
 
 from latex.config import ConfigBase, ProductionConfig
@@ -42,18 +42,26 @@ def create_app(config_data: ConfigBase = None) -> Flask:
     Factory method for creating the Flask instance, allows a special configuration for
     unit testing to be injected in
     """
-    instance_id = str(uuid.uuid4()).replace("-", "")[:10]
-
+    # Create the flask app and configure it
     app = Flask(__name__, instance_relative_config=True)
-
     if config_data is None:
         app.config.from_object(ProductionConfig())
     else:
         app.config.from_object(config_data)
-
-    celery.conf.update(app.config)
-
+    instance_id = app.config['INSTANCE_KEY']
     logging.info(f"Creating new app with instance_id={instance_id}")
+
+    # Configure the internal services
+    redis_client.init_app(app)
+    time_service.init_app(app)
+    session_manager.init_app(app, instance_id)
+
+    # celery.conf.update(app.config)
+    logging.info("Setting up periodic tasks")
+
+    # Import the routes
+    with app.app_context():
+        from . import api_routes
 
     # Write the environmental variables out to the log
     env_output = ["Current environmental variables:"]
@@ -61,13 +69,5 @@ def create_app(config_data: ConfigBase = None) -> Flask:
         env_output.append(f"  - {k}={v}")
     logging.info("\n".join(env_output))
 
-    # Set up the internal services
-    redis_client.init_app(app)
-    time_service.init_app(app)
-    session_manager.init_app(app, instance_id)
-
-    with app.app_context():
-        from . import api_routes
     return app
-
 

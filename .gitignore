@@ -4,6 +4,7 @@ publish.bat
 venv/
 .idea/
 test_assets/
+celerybeat-schedule.db
 
 # Python stuff
 .DS_Store
