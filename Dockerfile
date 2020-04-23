@@ -14,6 +14,7 @@ RUN mkdir /working && \
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
+ENV CELERY_LOG_LEVEL=info
 
 COPY ./ /var/www/app
 

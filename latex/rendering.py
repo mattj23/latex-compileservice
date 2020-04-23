@@ -12,6 +12,8 @@ from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
 from latex.session import Session, SessionManager
 
+import logging
+
 COMPILERS = ['xelatex', 'pdflatex', 'lualatex']
 RenderResult = namedtuple('RenderResult', 'success product log')
 
@@ -31,6 +33,7 @@ _latex_env = jinja2.Environment(
 
 
 def compile_latex(session_id: str, working_directory: str, instance_key: str):
+    logging.info("Compilation on session %s", session_id)
     client = redis.from_url(ConfigBase.REDIS_URL)
     manager = SessionManager(client, TimeService(), instance_key, working_directory)
     session = manager.load_session(session_id)

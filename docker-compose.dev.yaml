@@ -18,6 +18,7 @@ services:
       - "5000:5000"
     volumes:
       - latex-working:/working
+      - ./:/var/www/app   # For local development
     depends_on:
       - redis
       - worker
@@ -34,8 +35,10 @@ services:
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
       - IS_WORKER=1
+      - CELERY_LOG_LEVEL=DEBUG
     volumes:
       - latex-working:/working
+      - ./:/var/www/app   # For local development
     depends_on:
       - redis
 
