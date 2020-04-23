@@ -1,5 +1,6 @@
-# This is a development deployment for the application.  It has a single worker container and contains a definition for
-# a redis server.  The Flask application is set to debug and the environment to development.
+# This is a production deployment for the application.  It has a single worker container, though more can be added,
+# and contains a definition for a redis server.  There is also one celery beat scheduler.  The Flask application is
+# deployed using gunicorn rather than Flask's built in development wsgi server.
 version: '3'
 
 services:
@@ -12,14 +13,12 @@ services:
       - LC_ALL=C.UTF-8
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
-      - FLASK_ENV=development
-      - DEBUG=True
+      - FLASK_ENV=production
       - SESSION_TTL_SEC=300
     ports:
       - "5000:5000"
     volumes:
       - latex-working:/working
-      - ./:/var/www/app   # For local development
     depends_on:
       - redis
       - worker
@@ -36,10 +35,9 @@ services:
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
       - COMPONENT=worker
-      - CELERY_LOG_LEVEL=DEBUG
+      - CELERY_LOG_LEVEL=info
     volumes:
       - latex-working:/working
-      - ./:/var/www/app   # For local development
     depends_on:
       - redis
 
@@ -53,7 +51,7 @@ services:
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
       - COMPONENT=scheduler
-      - CELERY_LOG_LEVEL=DEBUG
+      - CELERY_LOG_LEVEL=info
       - CLEAR_EXPIRED_INTERVAL_SEC=60
     depends_on:
       - redis

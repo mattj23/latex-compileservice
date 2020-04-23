@@ -1,10 +1,9 @@
 import logging
 from celery import Celery
 
+from latex import celery
 import latex.tasks
 from latex.config import ConfigBase
-
-celery = Celery(broker=ConfigBase.REDIS_URL, backend=ConfigBase.REDIS_URL)
 
 
 @celery.on_after_configure.connect
