@@ -63,6 +63,7 @@ def fixture() -> TestFixture:
     # cleaned up after the test runs
     with tempfile.TemporaryDirectory(prefix=instance_key) as temp_path:
         manager = SessionManager(client, time_service, instance_key, temp_path)
+        manager.session_ttl = 60 * 5
         fixture = TestFixture(client=client,
                               manager=manager,
                               instance=instance_key,
@@ -198,7 +199,8 @@ def test_clear_expired_sessions_clears_expired(fixture: TestFixture):
         fixture.clock.set_time(i * 60)
         sessions.append(fixture.manager.create_session("xelatex", "sample1.tex"))
 
-    alive_time = TestConfig().SESSION_TTL_SEC
+    alive_time = 60 * 5
+    fixture.clock.set_time(fixture.clock.now + 1.0)
 
     clear_expired_sessions(fixture.manager.working_directory,
                            fixture.manager.instance_key,

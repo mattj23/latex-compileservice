@@ -72,6 +72,8 @@
 """
 import json
 import uuid
+from datetime import timedelta
+
 import redis
 from flask_redis import FlaskRedis
 from flask import Flask
@@ -108,6 +110,7 @@ class Session:
         self.compiler: str = kwargs["compiler"]
         self.target: str = kwargs["target"]
         self.created: float = kwargs["created"]
+        self.expires_at: float = kwargs["expires_at"]
         self.status: str = kwargs["status"]
         self._file_service: FileService = kwargs["file_service"]
         self._save_callback: Callable = kwargs["save_callback"]
@@ -150,6 +153,7 @@ class Session:
     def public(self):
         return {"key": self.key,
                 "created": self.created,
+                "expires_at": self.expires_at,
                 "compiler": self.compiler,
                 "target": self.target,
                 "files": self.files,
@@ -195,6 +199,7 @@ class SessionManager:
         self.redis = redis_client
         self.working_directory = working_directory
         self.instance_key = instance_key
+        self.session_ttl = int(ConfigBase.SESSION_TTL_SEC)
         self._init_file_service()
 
     def _init_file_service(self):
@@ -203,6 +208,7 @@ class SessionManager:
 
     def init_app(self, app: Flask, instance_id: str):
         self.working_directory = app.config["WORKING_DIRECTORY"]
+        self.session_ttl = int(app.config["SESSION_TTL_SEC"])
         self._init_file_service()
         self.instance_key = instance_id
 
@@ -216,6 +222,7 @@ class SessionManager:
         kwargs = {
             "key": key,
             "created": self.time_service.now,
+            "expires_at": self.time_service.now + float(self.session_ttl),
             "compiler": compiler,
             "target": target,
             "status": EDITABLE_TEXT,
@@ -271,7 +278,7 @@ def clear_expired_sessions(working_directory: str, instance_key: str, **kwargs):
 
     for session_id in manager.get_all_session_ids():
         session = manager.load_session(session_id)
-        if time_service.now - session.created > ConfigBase.SESSION_TTL_SEC:
+        if time_service.now >= session.expires_at:
             logging.info("Removing session %s", session.key)
             manager.delete_session(session)
 

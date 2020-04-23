@@ -14,6 +14,7 @@ services:
       - REDIS_URL=redis://:@redis:6379/0
       - FLASK_ENV=development
       - DEBUG=True
+      - SESSION_TTL_SEC=30
     ports:
       - "5000:5000"
     volumes:
@@ -23,10 +24,10 @@ services:
       - redis
       - worker
 
-  # This is the worker container, which is the same image but run with the IS_WORKER environmental variable set to 1,
-  # which causes the container to launch the python rq worker process instead of the Flask application.  If being
-  # deployed in swarm mode, 'replicas' can be used to set the number of copies, but otherwise you may simply need to
-  # make multiple workers here if you want to run more than one worker per Flask app.  Multiple workers is likely
+  # This is the celery worker container, which is the same image but run with the COMPONENT environmental variable set
+  # to 'worker' which causes the container to launch the celery worker process instead of the Flask application.  If
+  # being deployed in swarm mode, 'replicas' can be used to set the number of copies, but otherwise you may simply need
+  # to make multiple workers here if you want to run more than one worker per Flask app.  Multiple workers are likely
   # to only be necessary if there are many long compilation time sessions being performed.
   worker:
     build: .
@@ -34,11 +35,26 @@ services:
       - LC_ALL=C.UTF-8
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
-      - IS_WORKER=1
+      - COMPONENT=worker
       - CELERY_LOG_LEVEL=DEBUG
     volumes:
       - latex-working:/working
       - ./:/var/www/app   # For local development
+    depends_on:
+      - redis
+
+  # This is the celery beat scheduler container, which is also the same image but run with the COMPONENT environmental
+  # variable set to 'scheduler' which causes the container to launch the celery beat process instead of the Flask
+  # application.  There must only be one celery beat scheduler per deployment!
+  beat:
+    build: .
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - COMPONENT=scheduler
+      - CELERY_LOG_LEVEL=DEBUG
+      - CLEAR_EXPIRED_INTERVAL_SEC=10
     depends_on:
       - redis
 
