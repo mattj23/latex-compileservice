@@ -1,8 +1,11 @@
+# Tools and data
+cycle.sh
 publish.bat
 venv/
 .idea/
 test_assets/
 
+# Python stuff
 .DS_Store
 .env
 .flaskenv

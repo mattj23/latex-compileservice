@@ -1,12 +1,10 @@
+import os
 import uuid
 from datetime import datetime
 
 from flask import Flask
 from flask_redis import FlaskRedis
-
-from rq import Queue
-from rq_scheduler import Scheduler
-from worker import redis_conn, QUEUE_NAME
+from celery import Celery
 
 from latex.config import ConfigBase, ProductionConfig
 from latex.session import SessionManager, clear_expired_sessions
@@ -32,10 +30,10 @@ dictConfig({
 })
 
 # Globally accessible instances go here
+celery = Celery(__name__, backend=ConfigBase.REDIS_URL, broker=ConfigBase.REDIS_URL)
 redis_client = FlaskRedis()
 time_service = TimeService()
 session_manager = SessionManager(redis_client, time_service)
-task_queue = Queue(QUEUE_NAME, connection=redis_conn)
 
 
 # Application factory method
@@ -53,8 +51,12 @@ def create_app(config_data: ConfigBase = None) -> Flask:
     else:
         app.config.from_object(config_data)
 
+    celery.conf.update(app.config)
+
+    logging.info(f"Creating new app with instance_id={instance_id}")
+
     # Write the environmental variables out to the log
-    env_output = ["Environmental Variables:"]
+    env_output = ["Current environmental variables:"]
     for k, v in app.config.items():
         env_output.append(f"  - {k}={v}")
     logging.info("\n".join(env_output))
@@ -63,15 +65,6 @@ def create_app(config_data: ConfigBase = None) -> Flask:
     redis_client.init_app(app)
     time_service.init_app(app)
     session_manager.init_app(app, instance_id)
-
-    # Set up the session cleaning task
-    scheduler = Scheduler(QUEUE_NAME, connection=redis_conn)
-    scheduler.schedule(
-        scheduled_time=datetime.utcnow(),
-        func=clear_expired_sessions,
-        args=[session_manager.working_directory, session_manager.instance_key],
-        interval=app.config["CLEAR_EXPIRED_INTERVAL_SEC"]
-    )
 
     with app.app_context():
         from . import api_routes

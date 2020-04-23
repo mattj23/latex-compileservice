@@ -75,6 +75,7 @@ import uuid
 import redis
 from flask_redis import FlaskRedis
 from flask import Flask
+
 from latex.config import ConfigBase
 from latex.services.time_service import TimeService
 from latex.services.file_service import FileService

@@ -5,9 +5,9 @@ from flask import current_app as app
 from flask import jsonify, url_for, redirect, request, Response, send_file
 from werkzeug.exceptions import BadRequest, NotFound
 
-from latex import session_manager, task_queue
+from latex import session_manager
 from latex.services.time_service import TimeService
-from latex.rendering import compile_latex
+from latex.tasks import background_run_compile
 
 
 @app.route("/api", methods=["GET"])
@@ -156,7 +156,7 @@ def session_root(session_id: str):
                 if app.config["TESTING"]:
                     return jsonify(args)
                 else:
-                    job = task_queue.enqueue_call(func=compile_latex, args=args)
+                    task = background_run_compile.delay(*args)
                     return jsonify(handle.public), 202
 
         return BadRequest("POST data not understood")

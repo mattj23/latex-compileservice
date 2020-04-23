@@ -1,4 +1,4 @@
-from latex import create_app
+from latex import create_app, celery
 
 app = create_app()
 
