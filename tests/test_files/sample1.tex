@@ -13,24 +13,21 @@
 \maketitle
 
 \section{Overview}
-This project is a LaTeX compiling and template rendering web service intended to run in a Docker container, and interacted with by other software through a REST-like api. It is written in Python3 and uses Flask.
+This is a sample document, renderable to a pdf by a latex compiler. Inside this docment is a lot of words, and these words are combined together to make paragraphs, and the paragraphs together make sections. Each section manages to use a great deal of words without communicating anything in particular.
 
-This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full LaTeX installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
+By combining lots of words without meaning, we produce the illusion of meaningful content. Meaningless atomic units of information combine in such a way that they appear to transcend their meaningless, and meaning looks as if it is materialized from the heart of meaninglessness itself and made concrete in the assemblage of now suddenly structured content.  But in so doing, meaning is made to be the condition of segregation of meaning from its negation, as merely an abstract, or an ideal ideality.  And this change from meaning to the negation of meaning and its reversal in the negation of anti-meaning into meaning is simply the appearance of meaning as it originates conceptually from the dialectic.  In such the real identify of meaning and its cohesion with the ideality is made to be its ideal of specific specificness.
 
-This project is essentially a small Flask app built on top of an ubuntu docker image with `texlive-full` installed, inspired by `blang/latex:ubuntu` but derived from `ubuntu:bionic` for the considerable improvements in the 3.6 version of python.
+But do not be deceived, there is no actual content here. Nothing is produced on these pages, nor is anything communicated. Reading these sentences are as wasteful of time as writing them was.
 
-\section{Why as a service, and why Docker?}
-LaTeX, though quite powerful, can be a frustrating toolset to install and maintain, especially across platforms. A comprehensive installation can be several gigabytes in size, and seems to be easily broken.  Online tools like Overleaf clearly show how much pain can be saved by not maintaining individual installations, but Overleaf itself is structured towards the concepts of users and projects and isn't quite a lightweight service meant to be used by other services.
+\section{Why would you do this?}
+As it would happen, there needed to be some payload of example files to be used in the testing of this project, and lorum ipsum ends up being quite boring.  If you've read this far you have indeed wasted your time and, in accordance with the warning in the previous section, you have nobody to blame except yourself.
 
-Over the past 10 years, I've often relied on LaTeX to generate business documents as part of automated information systems in small business environments.  I would develop the code and the LaTeX templates on my windows workstation with a MikTeX installation, then end up having to re-install everything onto the target machine.  Invaribly some considerable time would pass and either I'd have upgraded laptops or the deployment machine would become unreliable or broken by some update, and putting everything back together would become an all day affair.  Adding another system that needed LaTeX compilation would never end up being as simple as using the existing machine with the already installed toolchain, as I would always end up breaking something.
-
-Docker is great for a lot of reasons, but the one I'm most fond of is that it has largely eliminated the dependency hell involved in setting up machines to host applications that rely on less widely used components.  In the SME world, it's difficult to overstate the value of being able to trivally redeploy an important service after the ancient tower running in a neglected closet that hosted it for the better part of the past decade finally decides it's too tired to carry on.
 
 \begin{figure}[h!]
 \centering
-\includegraphics[scale=1.7]{universe}
-\caption{The Universe}
-\label{fig:universe}
+\includegraphics[scale=1.7]{cat}
+\caption{This is a consolatory image of my cat.}
+\label{fig:cat}
 \end{figure}
 
 \end{document}
