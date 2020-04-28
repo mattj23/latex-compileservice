@@ -10,7 +10,7 @@ A Flask based web service that compiles LaTex projects to document form and uses
     * From the main project directory, `docker-compose up -d --build`
     * the app should be reachable at http://localhost:5000
 2. Send files to be rendered
-    * See `test_client.py` for an example of how to use python to interact with the API
+    * See `example_client.py` for an example of how to use python to interact with the API
     * Or, hit the http://localhost:5000/api end point to get a json form which will get you started
     * After creating a session, you can post files, `.tex`, images, etc, to the session
     * You can also post template text and data for the Jinja2 engine to render to a `.tex` file
@@ -24,18 +24,18 @@ A Flask based web service that compiles LaTex projects to document form and uses
 
 This project is a LaTeX compiling and template rendering web service intended to run in a Docker container, and interacted with by other software through a REST-like api. It is written in Python3 and uses Flask.
 
-This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full LaTeX installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
+This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full texlive installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
 
 This project is essentially a small Flask app built on top of an ubuntu docker image with `texlive-full` installed, inspired by `blang/latex:ubuntu` ([Github](https://github.com/blang/latex-docker), [DockerHub](https://hub.docker.com/r/blang/latex)) but derived from `ubuntu:bionic` (rather than `xenial`) for the considerable improvements in the 3.6 version of python. 
 
 Additionally, `jinja2` can be used to render templates to LaTeX files which will then be compiled with other source files, allowing for a slightly more sane scripting environment than plain TeX.  The `jinja2` grammar was slightly altered to be more compatible with LaTeX's quirks in a way that is inspired by, but slightly different from, [this blog post by Brad Erikson](http://eosrei.net/articles/2015/11/latex-templates-python-and-jinja2-generate-pdfs).
 
-### Why as a service, and why Docker?
+### Why as a service, and why containerized?
 LaTeX, though quite powerful, can be a frustrating toolset to install and maintain, especially across platforms. A comprehensive installation can be several gigabytes in size, and seems to be easily broken.  Online tools like [Overleaf](https://www.overleaf.com) ([source on GitHub](https://github.com/overleaf)) clearly show how much pain can be saved by not maintaining individual installations, but Overleaf itself is structured towards the concepts of users and projects and isn't quite a lightweight service meant to be consumed by other services. 
 
-Deploying a containerized service that houses a `texlive-full` installation and can live on any platform capable of hosting a Docker container takes nearly all of the pain out of managing it.  There's nothing to be broken during upgrades, and no complex setup to be lost when a server dies.  By making this app approximately stateless (it does store information, but only for a few minutes at a time) it is also extremely easy to migrate from host to host and to scale up or down as needed.  It's also easy to upgrade and redeploy.
+Deploying a containerized service that houses a `texlive-full` installation and can live on any platform capable of hosting a Docker container takes nearly all of the pain out of managing it.  There's nothing to be broken during upgrades, and no complex setup to be lost when a server dies.  By making this app nearly stateless (it does store information, but only for a few minutes at a time) it is also extremely easy to migrate from host to host and to scale up or down as needed.  It's also easy to upgrade and redeploy.
 
-In my experience, the additional layer of abstraction induced by Docker is a net benefit, because I have found the additional complexity of Docker to be far less than the complexity of managing LaTeX.  However, this service can be used outside of a container by installing the Flask app as a system service on a machine with a LaTeX toolchain and either a local or network-accessible Redis server.
+In my experience, the additional layer of abstraction induced by Docker is a net benefit, because I have found the additional complexity of Docker to be far less than the complexity of managing LaTeX.  However, a determined user/sysadmin can deploy this service outside of a container by installing the Flask app, the Celery worker, and the Celery scheduler as system services on a physical or virtual machine with a LaTeX toolchain, and pointing them at either a local or network-accessible Redis server.
 
 ### What makes this project different?
 
@@ -45,7 +45,7 @@ What I think the benefits of this project over the existing projects are:
 
 1. Send multiple files to the service, including a local nested directory structure. For example, you can set the main compilation target to `./sample.tex` and have that file reference several other files, such as `./diagram.png`, `./common/logo.png`, `./common/classes/org-doc.cls`, and `./common/classes/org.sty`
 
-2. Specify your choice of compiler for each compilation session.  You can use `pdflatex`, `xelatex`, or `lualatex`
+2. Specify your choice of compiler for each compilation session.  You can use `pdflatex`, `xelatex`, or `lualatex`, some of which are capable of different things.
 
 3. Use the `jinja2` engine to render `.tex` template files containing `jinja`'s python-like syntax to valid LaTeX, which will then be compiled as part of your project.  Submit the data to render to the template as a `json` dictionary. This is an easier way of producing generated documents for most people than trying to use LaTeX's programming mechanisms directly.
 
@@ -57,9 +57,30 @@ What I think the benefits of this project over the existing projects are:
 ## Getting Started - User
 ### Deploying the Service
 
+#### Deploying with Docker Compose or Swarm Mode
+If using Docker, and specifically Docker Compose or Docker Swarm Mode, the setup and deployment of the service is extremely straightforward and can mostly be accomplished by the use of the included YAML files. 
+
+In the main directory of this git repository, there are two `docker-compose.*.yaml` files. One is aimed at a production environment, and the other is for development.
+
+In either case, four containers will be created, one for the Flask app itself, one for the Celery worker, one for the Celery scheduler, and one for Redis.  The Celery worker and the Flask app will need to be able to share file storage, so must have a common volume in which the Flask app can store and retrieve files and the worker can run the LaTeX compilers.
+
+> As a note: because of Docker's copy-on-write Union File System, the running of the three separate containers does not translate into multiple copies of the frankly massive 3+ Gb base image, since almost all of it is shared between the different containers.  With some shell scripting effort, a user/sysadmin can combine all of the processes into a single container, but this will strip away any external orchestration tool's ability to manage the health of the different processes with little tangible benefit in exchange.
+
+##### Production: "docker-compose.yaml"
+For a production-oriented environment use the `docker-compose.yaml` file. It uses gunicorn as the WSGI server and has the Flask environment set for production.  Celery's loglevel is set to "info" and the shared volume is set up in the compose file.  
+
+There is only one worker container specified.  I do not currently know what the load is which would require a second or third worker and what benefits that would have over multiple copies of the service itself, but if you're using Docker swarm mode there should be no harm in using the "replicas" option to scale the number of workers.  It is *not* safe to scale the number of Celery beat schedulers, however, which is why the worker and beat scheduler were separated into two different containers instead of running the worker with the embedded scheduler via the `-B` option.  You can alter the `run.sh` shell script to include the `-B` option on the worker and remove the scheduler container if you know for a fact that you will never, in that case, run more than one worker.  However I don't believe there is any benefit to doing so.
+
 ### Using the Service
+#### Overview of the API
+#### Using the Template Rendering
+#### Example Code
 
 ## Getting Started - Developer
+### The Development Environment
+### Project Structure
+#### The Three Processes
+
 
 
 
