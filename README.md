@@ -67,9 +67,49 @@ In either case, four containers will be created, one for the Flask app itself, o
 > As a note: because of Docker's copy-on-write Union File System, the running of the three separate containers does not translate into multiple copies of the frankly massive 3+ Gb base image, since almost all of it is shared between the different containers.  With some shell scripting effort, a user/sysadmin can combine all of the processes into a single container, but this will strip away any external orchestration tool's ability to manage the health of the different processes with little tangible benefit in exchange.
 
 ##### Production: "docker-compose.yaml"
+```bash
+docker-compose build
+docker-compose up -d
+```
+
 For a production-oriented environment use the `docker-compose.yaml` file. It uses gunicorn as the WSGI server and has the Flask environment set for production.  Celery's loglevel is set to "info" and the shared volume is set up in the compose file.  
 
 There is only one worker container specified.  I do not currently know what the load is which would require a second or third worker and what benefits that would have over multiple copies of the service itself, but if you're using Docker swarm mode there should be no harm in using the "replicas" option to scale the number of workers.  It is *not* safe to scale the number of Celery beat schedulers, however, which is why the worker and beat scheduler were separated into two different containers instead of running the worker with the embedded scheduler via the `-B` option.  You can alter the `run.sh` shell script to include the `-B` option on the worker and remove the scheduler container if you know for a fact that you will never, in that case, run more than one worker.  However I don't believe there is any benefit to doing so.
+
+##### Development: "docker-compose.dev.yaml"
+```bash
+docker-compose -f docker-compose.dev.yaml build
+docker-compose -f docker-compose.dev.yaml up -d
+```
+
+For a development environment use the `docker-compose.dev.yaml` file. It uses the built in WSGI server (which is *not* suitable for production) with the appropriate Flask environmental variables set for a development server with debugging.  
+
+Additionally, the app directory is bind mounted to the local filesystem so that Flask should reload the server whenever files in that directory are updated in order to ease development.  The Celery log level is set to "DEBUG" by default but can be changed as needed.
+
+The setup for the four individual processes are the same as described in the production setup.
+
+#### Deploying on a Server OS
+Deploying this application directly on a server was not my intention for it, but is a viable option for someone with the right skill-set.  As a general rule it will be easiest to do on a Linux based OS with a package manager that includes texlive.
+
+I can't fully describe how to perform this setup, but can give some general information to help the process:
+
+1. You will need three processes running for the flask application and access to a Redis server, which can be local or over the network.
+2. The latex toolchain will need to be installed such that the Celery worker can call it from the shell
+3. Python 3.6 or greater needs to be installed, along with the dependencies in `requirements.txt`
+
+#### Environmental Variables
+The following are environmental variables which apply settings in the application
+
+|Variable|Notes|Default|
+|--------|-----|-------|
+|REDIS_URL|URL for the Redis service, required by Flask, the Celery worker, and the Celery beat scheduler|redis://:@localhost:6379/0
+|WORKING_DIRECTORY|The working directory where the session files and templates are stored, required by Flask and the Celery worker|/working
+|SESSION_TTL_SEC|Time in seconds after creation when the session will be cleared and all data removed.|300 (5 min)
+|CLEAR_EXPIRED_INTERVAL_SEC|Interval (in seconds) on which the background process clears expired sessions| 60
+|INSTANCE_KEY|A string which uniquely identifies a deployed instance. In the case that multiple instances are to share a single Redis server this value must be set to a unique value for each instance.|latex-compile-service
+|DEBUG|Environmental variable for Flask to tell if the debugger should be running| False
+|FLASK_ENV|Environmental variable for flask to know if it is running a production, development, or testing instance.|production
+|COMPONENT|Tells `run.sh` which component to launch. Used to ease running the different components through docker.  Must be set to `web`, `worker`, or `scheduler`.|web
 
 ### Using the Service
 #### Overview of the API
