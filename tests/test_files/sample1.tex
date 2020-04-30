@@ -1,5 +1,8 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{pstricks}
+\usepackage{pst-barcode}
 
 \title{Rendering Sample Document}
 \author{mattj23}
@@ -13,21 +16,24 @@
 \maketitle
 
 \section{Overview}
-This is a sample document, renderable to a pdf by a latex compiler. Inside this docment is a lot of words, and these words are combined together to make paragraphs, and the paragraphs together make sections. Each section manages to use a great deal of words without communicating anything in particular.
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nec ante id quam maximus semper nec eget quam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Maecenas aliquet dui vitae libero tristique pellentesque. Etiam fringilla ut felis eu scelerisque. Etiam dictum in turpis eu mattis. Maecenas lectus mi, viverra at augue a, scelerisque dignissim orci. Vestibulum eu tincidunt sapien, at egestas est. Duis porta interdum est, a aliquam sem imperdiet eu. Nam ornare ut nisl eu hendrerit. Mauris molestie turpis eros, a tincidunt nunc ultricies ac. In aliquam massa in arcu faucibus, id malesuada leo sagittis. In vulputate commodo turpis vel volutpat. Maecenas mollis ullamcorper dui vitae tempor. Aenean placerat eu felis dignissim posuere. Nullam orci orci, ultrices sit amet congue at, fringilla vel mi.
 
-By combining lots of words without meaning, we produce the illusion of meaningful content. Meaningless atomic units of information combine in such a way that they appear to transcend their meaningless, and meaning looks as if it is materialized from the heart of meaninglessness itself and made concrete in the assemblage of now suddenly structured content.  But in so doing, meaning is made to be the condition of segregation of meaning from its negation, as merely an abstract, or an ideal ideality.  And this change from meaning to the negation of meaning and its reversal in the negation of anti-meaning into meaning is simply the appearance of meaning as it originates conceptually from the dialectic.  In such the real identify of meaning and its cohesion with the ideality is made to be its ideal of specific specificness.
+    Vestibulum vel massa dapibus, ullamcorper felis at, posuere dolor. Integer in magna tellus. Phasellus non feugiat ante, condimentum tristique ex. Cras sit amet nulla blandit urna laoreet sollicitudin. Cras ut nunc non quam dictum venenatis. Nam massa dui, vestibulum in efficitur in, pharetra sit amet est. Aenean urna lectus, vestibulum at magna et, interdum volutpat nunc. Aenean hendrerit tempus blandit. Nam maximus urna orci, quis blandit mi tincidunt vel. Donec congue, metus at gravida congue, urna nisl cursus nisi, eget dignissim augue mauris ac dui. Cras orci tortor, fringilla id hendrerit vitae, lobortis in felis. Donec scelerisque vel ante eu blandit. Nulla facilisi. In sodales, massa eu placerat blandit, tellus sem sodales arcu, non maximus velit velit sit amet purus.
 
-But do not be deceived, there is no actual content here. Nothing is produced on these pages, nor is anything communicated. Reading these sentences are as wasteful of time as writing them was.
-
-\section{Why would you do this?}
-As it would happen, there needed to be some payload of example files to be used in the testing of this project, and lorum ipsum ends up being quite boring.  If you've read this far you have indeed wasted your time and, in accordance with the warning in the previous section, you have nobody to blame except yourself.
-
+\section{Conclusions}
+    Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?
 
 \begin{figure}[h!]
 \centering
-\includegraphics[scale=1.7]{cat}
-\caption{This is a consolatory image of my cat.}
+\includegraphics[scale=1]{cat}
+\caption{This is a image of my cat.}
 \label{fig:cat}
 \end{figure}
+
+\section{QR Code}
+\begin{pspicture}(50mm,50mm)
+\obeylines
+\psbarcode{https://github.com/mattj23/latex-compileservice}{width=1.0 height=1.0}{qrcode}%
+\end{pspicture}
 
 \end{document}
