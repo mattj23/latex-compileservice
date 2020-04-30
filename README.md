@@ -169,7 +169,7 @@ Here is an example:
 ```json
 {
   "name": "example.tex",
-  "text": "\documentclass{article}\begin{document}\section{\EXPR{section_name}}\end{document}",
+  "text": "\\documentclass{article}\\begin{document}\\section{\\EXPR{section_name}}\\end{document}",
   "data": {"section_name": "This is a Section Header"}
 }
 ```
