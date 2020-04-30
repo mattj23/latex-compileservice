@@ -1,0 +1,68 @@
+# This is a production deployment for the application.  It has a single worker container, though more can be added,
+# and contains a definition for a redis server.  There is also one celery beat scheduler.  The Flask application is
+# deployed using gunicorn rather than Flask's built in development wsgi server.
+version: '3'
+
+services:
+  # This is the Flask application itself, which depends on both the redis server and the worker. There only needs
+  # to be one of these containers deployed.  In order to share files with the worker(s), a common volume is mounted
+  # to /working, which is where the Flask application will store files uploaded to it.
+  web:
+    image: matthewjarvis/latex-compileservice
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - FLASK_ENV=production
+      - SESSION_TTL_SEC=300
+    ports:
+      - "5000:5000"
+    volumes:
+      - latex-working:/working
+    depends_on:
+      - redis
+      - worker
+
+  # This is the celery worker container, which is the same image but run with the COMPONENT environmental variable set
+  # to 'worker' which causes the container to launch the celery worker process instead of the Flask application.  If
+  # being deployed in swarm mode, 'replicas' can be used to set the number of copies, but otherwise you may simply need
+  # to make multiple workers here if you want to run more than one worker per Flask app.  Multiple workers are likely
+  # to only be necessary if there are many long compilation time sessions being performed.
+  worker:
+    image: matthewjarvis/latex-compileservice
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - COMPONENT=worker
+      - CELERY_LOG_LEVEL=info
+    volumes:
+      - latex-working:/working
+    depends_on:
+      - redis
+
+  # This is the celery beat scheduler container, which is also the same image but run with the COMPONENT environmental
+  # variable set to 'scheduler' which causes the container to launch the celery beat process instead of the Flask
+  # application.  There must only be one celery beat scheduler per deployment!
+  beat:
+    image: matthewjarvis/latex-compileservice
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - REDIS_URL=redis://:@redis:6379/0
+      - COMPONENT=scheduler
+      - CELERY_LOG_LEVEL=info
+      - CLEAR_EXPIRED_INTERVAL_SEC=60
+    depends_on:
+      - redis
+
+  # The Flask application and the workers communicate with each other via redis, and the Flask app uses redis to store
+  # the non-file information uploaded by consumers of the service.  One redis server should be capable of servicing
+  # many replicas of the compile service, so it is reasonable to use an external redis server in place of this one
+  redis:
+    image: redis:5
+
+# The Flask application saves file data to a local folders in /working, so the workers need access to that data to
+# perform the compilation task.  This is accomplished by having a volume shared by the two containers.
+volumes:
+  latex-working:
