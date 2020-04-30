@@ -26,7 +26,7 @@ This project is a LaTeX compiling and template rendering web service intended to
 
 This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full texlive installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
 
-This project is essentially a small Flask app built on top of an ubuntu docker image with `texlive-full` installed, inspired by `blang/latex:ubuntu` ([Github](https://github.com/blang/latex-docker), [DockerHub](https://hub.docker.com/r/blang/latex)) but derived from `ubuntu:bionic` (rather than `xenial`) for the considerable improvements in the 3.6 version of python. 
+This project is essentially a small Flask app built on top of [laurenss/texlive-full](https://hub.docker.com/r/laurenss/texlive-full) an ubuntu-based docker image with `texlive-full` installed. 
 
 Additionally, `jinja2` can be used to render templates to LaTeX files which will then be compiled with other source files, allowing for a slightly more sane scripting environment than plain TeX.  The `jinja2` grammar was slightly altered to be more compatible with LaTeX's quirks in a way that is inspired by, but slightly different from, [this blog post by Brad Erikson](http://eosrei.net/articles/2015/11/latex-templates-python-and-jinja2-generate-pdfs).
 
@@ -64,7 +64,7 @@ In the main directory of this git repository, there are two `docker-compose.*.ya
 
 In either case, four containers will be created, one for the Flask app itself, one for the Celery worker, one for the Celery scheduler, and one for Redis.  The Celery worker and the Flask app will need to be able to share file storage, so must have a common volume in which the Flask app can store and retrieve files and the worker can run the LaTeX compilers.
 
-> As a note: because of Docker's copy-on-write Union File System, the running of the three separate containers does not translate into multiple copies of the frankly massive 3+ Gb base image, since almost all of it is shared between the different containers.  With some shell scripting effort, a user/sysadmin can combine all of the processes into a single container, but this will strip away any external orchestration tool's ability to manage the health of the different processes with little tangible benefit in exchange.
+> As a note: because of Docker's copy-on-write Union File System, the running of the three separate containers does not translate into multiple copies of the frankly massive 4+ Gb image, since almost all of it is shared between the different containers.  With some shell scripting effort, a user/sysadmin can combine all of the processes into a single container, but this will strip away any external orchestration tool's ability to manage the health of the different processes with little tangible benefit in exchange.
 
 ##### Production: "docker-compose.yaml"
 ```bash
