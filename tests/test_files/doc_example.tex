@@ -1,0 +1,7 @@
+\documentclass{article}
+\begin{document}
+    \BLOCK{ for s in sections }
+        \section{\EXPR{s.name}}
+        \EXPR{s.content}
+    \BLOCK{ endfor }
+\end{document}

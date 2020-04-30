@@ -106,6 +106,27 @@ def test_render(render_fixture: RenderFixture):
         assert f"Item {v}" in rendered_text
 
 
+def test_render_doc_example(render_fixture: RenderFixture):
+    target_name = "doc_example.tex"
+    data = {
+      "sections": [
+        {"name": "This is Section A", "content": "This is the text content for section A"},
+        {"name": "This is Section B", "content": "This is the text content for section B"}
+        ]
+    }
+    copy_template(target_name, data, render_fixture.template_dir)
+    _render_templates(render_fixture.template_dir, render_fixture.source_dir)
+
+    with open(os.path.join(render_fixture.source_dir, target_name), "r") as handle:
+        rendered_text = handle.read()
+
+    content = " ".join(rendered_text.split())
+    expected = '\\documentclass{article} \\begin{document} \\section{This is Section A} This is the text content for ' \
+               'section A \\section{This is Section B} This is the text content for section B \\end{document}'
+    assert content == expected
+
+
+
 def test_render_and_compile(render_fixture: RenderFixture):
     target_name = "sample_template1.tex"
     copy_template(target_name, _simple_template_data, render_fixture.template_dir)
