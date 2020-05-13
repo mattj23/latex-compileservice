@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: latex-compiler
+spec:
+  selector:
+    matchLabels:
+      app: latex
+  replicas: 1
+  template:
+
+    # This is the pod configuration
+    metadata:
+      labels:
+        app: latex
+    
+    spec:
+      volumes:
+      - name: working
+        emptyDir: {}
+
+      containers:
+        # This is the main flask application container
+        - name: latex
+          image: matthewjarvis/latex-compileservice:latest
+          volumeMounts:
+          - name: working
+            mountPath: /working
+          env:
+            - name: LC_ALL
+              value: "C.UTF-8"
+            - name: LANG
+              value: "C.UTF-8"
+            - name: REDIS_URL
+              value: "redis://:@127.0.0.1:6379/0"
+            - name: FLASK_ENV
+              value: "production"
+            - name: SESSION_TTL_SEC
+              value: "300"
+          ports:
+            - containerPort: 5000
+
+        - name: worker
+          image: matthewjarvis/latex-compileservice:latest
+          volumeMounts:
+          - name: working
+            mountPath: /working
+          env:
+            - name: LC_ALL
+              value: "C.UTF-8"
+            - name: LANG
+              value: "C.UTF-8"
+            - name: REDIS_URL
+              value: "redis://:@127.0.0.1:6379/0"
+            - name: COMPONENT
+              value: "worker"
+            - name: CELERY_LOG_LEVEL
+              value: "info"
+
+        - name: beat
+          image: matthewjarvis/latex-compileservice:latest
+          env:
+            - name: LC_ALL
+              value: "C.UTF-8"
+            - name: LANG
+              value: "C.UTF-8"
+            - name: REDIS_URL
+              value: "redis://:@127.0.0.1:6379/0"
+            - name: COMPONENT
+              value: "scheduler"
+            - name: CELERY_LOG_LEVEL
+              value: "info"
+            - name: CLEAR_EXPIRED_INTERVAL_SEC
+              value: "60"
+
+        - name: redis
+          image: redis:5
+

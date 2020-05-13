@@ -78,6 +78,15 @@ wget https://raw.githubusercontent.com/mattj23/latex-compileservice/master/deplo
 docker-compose up -d
 ```
 
+#### On K8s with kubectl
+
+If you have a working kubernetes cluster, there is a set of YAML files for use with `kubectl` which can serve as a starting point for getting the application deployed on the cluster.  I am a beginner with K8s so I welcome any feedback.
+
+The YAML files are located under the "./deployments/kubectl" directory.
+
+[The README.md in the directory explains the contents and has a guide for beginners](https://github.com/mattj23/latex-compileservice/blob/master/deployment/kubectl/README.md)
+
+
 #### From this Git Repo
 For a production-oriented environment use the `docker-compose.yaml` file. It uses gunicorn as the WSGI server and has the Flask environment set for production.  Celery's loglevel is set to "info" and the shared volume is set up in the compose file.  
 

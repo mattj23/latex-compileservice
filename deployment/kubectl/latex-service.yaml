@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: latex-internal-service
+spec:
+  selector:
+    app: latex
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
