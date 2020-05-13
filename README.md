@@ -1,6 +1,6 @@
 # LaTeX Compile Service
 
-A Flask based web service that compiles LaTex projects to document form and uses the Jinja2 engine to render templates and data to .tex files.  Ready to deploy with `docker-compose`, or other container orchestration system.  Can be installed directly on a server OS with a bit more effort.
+A Flask based web service that compiles LaTex projects to document form and uses the Jinja2 engine to render templates and data to .tex files.  Ready to deploy with docker-compose, docker swarm mode, or kubernetes.  Can be installed directly on a server OS with a bit more effort.
 
 ## Quickstart
 
@@ -35,7 +35,7 @@ LaTeX, though quite powerful, can be a frustrating toolset to install and mainta
 
 Deploying a containerized service that houses a `texlive-full` installation and can live on any platform capable of hosting a Docker container takes nearly all of the pain out of managing it.  There's nothing to be broken during upgrades, and no complex setup to be lost when a server dies.  By making this app nearly stateless (it does store information, but only for a few minutes at a time) it is also extremely easy to migrate from host to host and to scale up or down as needed.  It's also easy to upgrade and redeploy.
 
-In my experience, the additional layer of abstraction induced by Docker is a net benefit, because I have found the additional complexity of Docker to be far less than the complexity of managing LaTeX.  However, a determined user/sysadmin can deploy this service outside of a container by installing the Flask app, the Celery worker, and the Celery scheduler as system services on a physical or virtual machine with a LaTeX toolchain, and pointing them at either a local or network-accessible Redis server.
+In my experience, the additional layer of abstraction induced by containerization is a net benefit, because I have found the additional complexity of Docker to be far less than the complexity of managing LaTeX.  However, a determined user/sysadmin can deploy this service outside of a container by installing the Flask app, the Celery worker, and the Celery scheduler as system services on a physical or virtual machine with a LaTeX toolchain, and pointing them at either a local or network-accessible Redis server.
 
 ### What makes this project different?
 
@@ -56,14 +56,6 @@ What I think the benefits of this project over the existing projects are:
 
 ## Getting Started: Deployment
 There are a few options for deploying this service. The application is designed to be deployed via containers, and docker-compose is the the simplest option.  The application can also be deployed via Docker Swarm Mode, Kubernetes, or installation directly onto a server operating system.
-
-### On K8s with kubectl
-
-If you have a working kubernetes cluster, there is a set of YAML files for use with `kubectl` which can serve as a starting point for getting the application deployed on the cluster.  I am a beginner with K8s so I welcome any feedback.
-
-The YAML files are located under the "./deployments/kubectl" directory.
-
-[The README.md in the directory explains the contents and has a guide for beginners](https://github.com/mattj23/latex-compileservice/blob/master/deployment/kubectl/README.md)
 
 ### Docker Compose/Swarm Mode
 If using Docker, and specifically Docker Compose or Docker Swarm Mode, the setup and deployment of the service is extremely straightforward and can mostly be accomplished by the use of the included YAML files. 
@@ -108,8 +100,16 @@ docker-compose -f docker-compose.dev.yaml build
 docker-compose -f docker-compose.dev.yaml up -d
 ```
 
+### On K8s with kubectl
+
+If you have a working kubernetes cluster, there is a set of YAML files for use with `kubectl` which can serve as a starting point for getting the application deployed on the cluster.  I am a beginner with K8s so I welcome any feedback.
+
+The YAML files are located under the "./deployments/kubectl" directory.
+
+[The README.md in the directory explains the contents and has a guide for beginners](https://github.com/mattj23/latex-compileservice/blob/master/deployment/kubectl/README.md)
+
 ### Deploying on a Server OS
-Deploying this application directly on a server was not my intention for it, but is a viable option for someone with the right skill-set.  As a general rule it will be easiest to do on a Linux based OS with a package manager that includes texlive.
+Deploying this application directly on a server was not my intention for it, but is a viable option for someone with the right skillset.  As a general rule it will be easiest to do on a Linux based OS with a package manager that includes texlive.
 
 I can't fully describe how to perform this setup, but can give some general information to help the process:
 
@@ -141,7 +141,7 @@ Once the session transitions to "finalized", a background worker will eventually
 
 At that point, the session will contain a link to log files, and (if it completed successfully) a product, which the client may download.
 
-The session will only persist for a limited amount of time (set by the server) after completion.  It is the responsibility of the client to check and download the results before the session is removed.
+The session will only persist for a limited amount of time (set by the server) after creation.  It is the responsibility of the client to check and download the results before the session is removed.
 
 ### Endpoints
 
