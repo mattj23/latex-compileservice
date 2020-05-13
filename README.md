@@ -57,6 +57,14 @@ What I think the benefits of this project over the existing projects are:
 ## Getting Started: Deployment
 There are a few options for deploying this service. The application is designed to be deployed via containers, and docker-compose is the the simplest option.  The application can also be deployed via Docker Swarm Mode, Kubernetes, or installation directly onto a server operating system.
 
+### On K8s with kubectl
+
+If you have a working kubernetes cluster, there is a set of YAML files for use with `kubectl` which can serve as a starting point for getting the application deployed on the cluster.  I am a beginner with K8s so I welcome any feedback.
+
+The YAML files are located under the "./deployments/kubectl" directory.
+
+[The README.md in the directory explains the contents and has a guide for beginners](https://github.com/mattj23/latex-compileservice/blob/master/deployment/kubectl/README.md)
+
 ### Docker Compose/Swarm Mode
 If using Docker, and specifically Docker Compose or Docker Swarm Mode, the setup and deployment of the service is extremely straightforward and can mostly be accomplished by the use of the included YAML files. 
 
@@ -77,15 +85,6 @@ Alternatively, from a clean directory you can download and apply the file:
 wget https://raw.githubusercontent.com/mattj23/latex-compileservice/master/deployment/docker-hub/docker-compose.yaml
 docker-compose up -d
 ```
-
-#### On K8s with kubectl
-
-If you have a working kubernetes cluster, there is a set of YAML files for use with `kubectl` which can serve as a starting point for getting the application deployed on the cluster.  I am a beginner with K8s so I welcome any feedback.
-
-The YAML files are located under the "./deployments/kubectl" directory.
-
-[The README.md in the directory explains the contents and has a guide for beginners](https://github.com/mattj23/latex-compileservice/blob/master/deployment/kubectl/README.md)
-
 
 #### From this Git Repo
 For a production-oriented environment use the `docker-compose.yaml` file. It uses gunicorn as the WSGI server and has the Flask environment set for production.  Celery's loglevel is set to "info" and the shared volume is set up in the compose file.  
