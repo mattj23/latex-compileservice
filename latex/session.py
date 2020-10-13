@@ -82,7 +82,7 @@ from latex.config import ConfigBase
 from latex.services.time_service import TimeService
 from latex.services.file_service import FileService
 
-from typing import Callable, List, Set
+from typing import Callable, List, Set, Dict
 import logging
 
 
@@ -101,6 +101,29 @@ def to_key(session_id: str) -> str:
     return f"session:{session_id}"
 
 
+def validate_conversion_data(convert_data: Dict) -> Dict:
+    """ Validate information for image conversion by checking that it is in the expected format and that the values
+    are in the expected range.  If the input data is None, it will return None, as this is a valid option and indicates
+    that no conversion is to take place.  If the input data is invalid, it throws a ValueError. Otherwise it
+    returns a cleaned version of the data."""
+    if convert_data is None:
+        return None
+
+    if not isinstance(convert_data, dict) or "format" not in convert_data or "dpi" not in convert_data:
+        raise ValueError("Image conversion data must be a dictionary with the keys 'format' and 'dpi'")
+
+    convert_format = convert_data["format"]
+    convert_dpi = convert_data["dpi"]
+
+    if convert_format not in ["jpeg", "png", "tiff"]:
+        raise ValueError('Conversion format must be "jpeg", "png", or "tiff"')
+
+    if not isinstance(convert_dpi, int) or convert_dpi > 10000 or convert_dpi < 10:
+        raise ValueError('Image conversion dpi must be an integer between 10 and 10000')
+
+    return {"format": convert_format, "dpi": convert_dpi}
+
+
 class Session:
     _source_directory = "source"
     _template_directory = "templates"
@@ -116,6 +139,7 @@ class Session:
         self._save_callback: Callable = kwargs["save_callback"]
         self.product: str = kwargs.get("product", None)
         self.log: str = kwargs.get("log", None)
+        self.convert = kwargs.get("convert", None)
 
         if not self._file_service.exists(Session._source_directory):
             self._file_service.makedirs(Session._source_directory)
@@ -158,6 +182,7 @@ class Session:
                 "target": self.target,
                 "files": self.files,
                 "templates": self.templates,
+                "convert": self.convert,
                 "status": self.status
                 }
 
@@ -212,7 +237,7 @@ class SessionManager:
         self._init_file_service()
         self.instance_key = instance_id
 
-    def create_session(self, compiler: str, target: str) -> Session:
+    def create_session(self, compiler: str, target: str, convert=None) -> Session:
         key = make_id()
 
         # Create the working directory
@@ -226,6 +251,7 @@ class SessionManager:
             "compiler": compiler,
             "target": target,
             "status": EDITABLE_TEXT,
+            "convert": convert,
             "file_service": self.root_file_service.create_from(key),
             "save_callback": self.save_session
         }

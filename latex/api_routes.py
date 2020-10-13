@@ -8,6 +8,7 @@ from werkzeug.exceptions import BadRequest, NotFound
 from latex import session_manager
 from latex.services.time_service import TimeService
 from latex.tasks import background_run_compile
+from latex.session import validate_conversion_data
 
 
 @app.route("/api", methods=["GET"])
@@ -19,6 +20,8 @@ def api_home():
             "method": "POST",
             "value": [
                 {"name": "compiler", "required": True, "label": "compiler, use 'xelatex', 'pdflatex', or 'lualatex'"},
+                {"name": "convert", "required": False, "label": "convert to image, can be none, or {'format': 'jpeg', "
+                                                                "'dpi': 300} where format is 'jpeg', 'tiff', or 'png'"},
                 {"name": "target", "required": True, "label": "main target file to run through the compiler"}
             ]
         }
@@ -61,7 +64,15 @@ def get_sessions():
     if None in (compiler, target):
         raise BadRequest("both compiler and target must be specified")
 
-    session_handle = session_manager.create_session(compiler, target)
+    if "convert" in request.json:
+        try:
+            convert = validate_conversion_data(request.json["convert"])
+        except ValueError as e:
+            return BadRequest(e.args[0])
+    else:
+        convert = None
+
+    session_handle = session_manager.create_session(compiler, target, convert)
 
     created_location = url_for(session_root.__name__, session_id=session_handle.key)
     return jsonify(session_handle.public), 201, {"location": created_location}
@@ -146,10 +157,20 @@ def session_root(session_id: str):
         # Handle JSON data posted
         if request.is_json and isinstance(request.json, dict):
 
+            # Check that the session isn't locked already
+            if not handle.is_editable:
+                return jsonify({"error": "session is not editable"}), 403
+
+            # Check if conversion data has been supplied
+            if "convert" in request.json:
+                try:
+                    handle.convert = validate_conversion_data(request.json["convert"])
+                    session_manager.save_session(handle)
+                except ValueError as e:
+                    return BadRequest(e.args[0])
+
             # Session finalization
-            if request.json.get("finalize", False) == True:
-                if not handle.is_editable:
-                    return jsonify({"error": "session is not editable"}), 403
+            if request.json.get("finalize", False):
                 handle.finalize()
 
                 args = (handle.key, session_manager.working_directory, session_manager.instance_key)
