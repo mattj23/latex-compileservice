@@ -156,6 +156,7 @@ def session_root(session_id: str):
     if request.method == "POST":
         # Handle JSON data posted
         if request.is_json and isinstance(request.json, dict):
+            updated_something = False
 
             # Check that the session isn't locked already
             if not handle.is_editable:
@@ -166,8 +167,14 @@ def session_root(session_id: str):
                 try:
                     handle.convert = validate_conversion_data(request.json["convert"])
                     session_manager.save_session(handle)
+                    updated_something = True
                 except ValueError as e:
                     return BadRequest(e.args[0])
+
+            # Any additional values that should be get set with a POST to this endpoint should
+            # be done here, so that the check for session finalization is the very last thing
+            # that happens.  After the check for finalization, if anything was changed we can
+            # return a 200 code
 
             # Session finalization
             if request.json.get("finalize", False):
@@ -179,6 +186,9 @@ def session_root(session_id: str):
                 else:
                     task = background_run_compile.delay(*args)
                     return jsonify(handle.public), 202
+
+            # If we did update something but didn't finalize, we can return the updated session
+            return jsonify(handle.public), 200
 
         return BadRequest("POST data not understood")
 

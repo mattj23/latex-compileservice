@@ -99,7 +99,37 @@ def test_post_session_fails_if_missing_compiler(fixture: TestFixture):
 
 
 def test_post_session_fails_if_missing_target(fixture: TestFixture):
-    data = {"compiler": "pdflatex" }
+    data = {"compiler": "pdflatex"}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_convert_is_wrong_type(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "test.tex", "convert": ["list"]}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_convert_is_missing_format(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "test.tex", "convert": {"fmt": "jpeg", "dpi": 200}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_convert_is_missing_dpi(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "test.tex", "convert": {"fmt": "jpeg", "dpx": 200}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_convert_is_wrong_format(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "test.tex", "convert": {"format": "gif", "dpx": 200}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 400
+
+
+def test_post_session_fails_if_convert_is_wrong_dpi(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "test.tex", "convert": {"format": "gif", "dpi": 9999200}}
     response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
     assert response.status_code == 400
 
@@ -118,6 +148,12 @@ def test_create_session_has_timestamp(fixture: TestFixture):
     assert response.json["created"] == 24601
 
 
+def test_post_session_creates_with_convert(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "sample1.tex", "convert": {"format": "jpeg", "dpi": 150}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    assert response.status_code == 201
+
+
 def test_get_session_information(fixture: TestFixture):
     data = {"compiler": "pdflatex", "target": "test5.tex"}
     time_service.test.set_time(24601)
@@ -129,6 +165,18 @@ def test_get_session_information(fixture: TestFixture):
     assert response2.json["compiler"] == "pdflatex"
     assert response2.json["target"] == "test5.tex"
     assert response2.json["created"] == 24601
+
+
+def test_get_session_convert_info(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "sample1.tex", "convert": {"format": "jpeg", "dpi": 150}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_key = response.json["key"]
+    session_url = f"/api/sessions/{session_key}"
+
+    get_response: Response = fixture.client.get(session_url, follow_redirects=True)
+    assert get_response.is_json
+    assert response.json["convert"]["format"] == "jpeg"
+    assert response.json["convert"]["dpi"] == 150
 
 
 def test_add_file_to_session(fixture: TestFixture):
@@ -302,3 +350,35 @@ def test_status_endpoint(fixture: TestFixture):
     assert "sessions" in response.json.keys()
     assert "time" in response.json.keys()
 
+
+def test_set_image_conversion(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "sample1.tex"}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_key = response.json["key"]
+    session_url = f"/api/sessions/{session_key}"
+
+    post_data = {"convert": {
+        "format": "jpeg",
+        "dpi": 300
+    }}
+    response: Response = fixture.client.post(session_url, json=post_data, follow_redirects=True)
+    assert response.status_code == 200
+
+    get_response: Response = fixture.client.get(session_url, follow_redirects=True)
+    assert get_response.is_json
+    assert response.json["convert"]["format"] == "jpeg"
+    assert response.json["convert"]["dpi"] == 300
+
+
+def test_unset_image_conversion(fixture: TestFixture):
+    data = {"compiler": "pdflatex", "target": "sample1.tex", "convert": {"format": "jpeg", "dpi": 150}}
+    response: Response = fixture.client.post("/api/sessions", json=data, follow_redirects=True)
+    session_key = response.json["key"]
+    session_url = f"/api/sessions/{session_key}"
+
+    response: Response = fixture.client.post(session_url, json={"convert": None}, follow_redirects=True)
+    assert response.status_code == 200
+
+    get_response: Response = fixture.client.get(session_url, follow_redirects=True)
+    assert get_response.is_json
+    assert response.json["convert"] is None
