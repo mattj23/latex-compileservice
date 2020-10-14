@@ -47,9 +47,9 @@ def compile_latex(session_id: str, working_directory: str, instance_key: str):
 
     # If we need to perform an image conversion, we do it now
     if session.convert is not None:
-        convert_result = _convert_image_(session.product,
-                                         session.convert["format"],
-                                         session.convert["dpi"])
+        convert_result = _convert_image(session.product,
+                                        session.convert["format"],
+                                        session.convert["dpi"])
         if convert_result:
             result = RenderResult(success=True, product=convert_result, log=result.log)
         else:
@@ -83,18 +83,25 @@ def _render_templates(template_path: str, source_path: str):
             handle.write(rendered_text)
 
 
-def _convert_image_(target: str, format: str, dpi: int) -> str:
+def _convert_image(target: str, format: str, dpi: int) -> str:
     working_dir, file_name = os.path.split(target)
     target_base, _ = os.path.splitext(file_name)
-    command = ["pdftoppm", f"-{format}", f"-dpi {dpi}",
+    command = ["pdftoppm", "-singlefile", f"-{format}", "-r", f"{dpi}",
                file_name, target_base]
 
-    process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=working_dir)
-    process.wait()
-    expected_file = os.path.join(working_dir, f"{target_base}.{format}")
-    if os.path.exists(expected_file):
-        return expected_file
-    return None
+    # Determine the files in the directory before running the conversion
+    original_files = os.listdir(working_dir)
+
+    # Run the conversion command
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=working_dir)
+    stdout, stderr = process.communicate()
+
+    # Find the new file
+    new_files = [f for f in os.listdir(working_dir) if f not in original_files]
+    if len(new_files) != 1:
+        return None
+
+    return os.path.join(working_dir, new_files[0])
 
 
 def _render_and_compile(session_id: str, compiler: str, target: str, source_path: str,

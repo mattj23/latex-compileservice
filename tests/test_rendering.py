@@ -7,7 +7,7 @@ from hashlib import md5
 import pytest
 
 from tests.test_sessions import find_test_asset_folder
-from latex.rendering import _render_and_compile, _render_templates, RenderResult
+from latex.rendering import _convert_image, _render_and_compile, _render_templates, RenderResult
 
 
 _simple_template_data = {
@@ -126,7 +126,6 @@ def test_render_doc_example(render_fixture: RenderFixture):
     assert content == expected
 
 
-
 def test_render_and_compile(render_fixture: RenderFixture):
     target_name = "sample_template1.tex"
     copy_template(target_name, _simple_template_data, render_fixture.template_dir)
@@ -135,4 +134,37 @@ def test_render_and_compile(render_fixture: RenderFixture):
     assert result.product is not None
     assert os.path.exists(result.product)
     assert os.path.exists(result.log)
+
+
+def test_compile_and_convert_jpeg(render_fixture: RenderFixture):
+    target_file = "small_doc.tex"
+    copy_test_file(target_file, render_fixture.source_dir)
+    result = _render_and_compile("temp", "xelatex", target_file, render_fixture.source_dir, render_fixture.template_dir)
+    converted = _convert_image(result.product, "jpeg", 600)
+
+    assert converted is not None
+    assert os.path.exists(converted)
+    assert converted.endswith(".jpg")
+
+
+def test_compile_and_convert_png(render_fixture: RenderFixture):
+    target_file = "small_doc.tex"
+    copy_test_file(target_file, render_fixture.source_dir)
+    result = _render_and_compile("temp", "xelatex", target_file, render_fixture.source_dir, render_fixture.template_dir)
+    converted = _convert_image(result.product, "png", 600)
+
+    assert converted is not None
+    assert os.path.exists(converted)
+    assert converted.endswith(".png")
+
+
+def test_compile_and_convert_tiff(render_fixture: RenderFixture):
+    target_file = "small_doc.tex"
+    copy_test_file(target_file, render_fixture.source_dir)
+    result = _render_and_compile("temp", "xelatex", target_file, render_fixture.source_dir, render_fixture.template_dir)
+    converted = _convert_image(result.product, "tiff", 600)
+
+    assert converted is not None
+    assert os.path.exists(converted)
+    assert converted.endswith(".tif")
 
