@@ -2,6 +2,8 @@
 
 A Flask based web service that compiles LaTex projects to document form and uses the Jinja2 engine to render templates and data to .tex files.  Ready to deploy with docker-compose, docker swarm mode, or kubernetes.  Can be installed directly on a server OS with a bit more effort.
 
+*This project is intended for use as an internal service being consumed by trusted clients. TeX is a general purpose programming language and its ability to read and write arbitrary text files through its macro system is [sufficient to allow maliciously crafted tex files to run arbitrary binaries](https://www.usenix.org/system/files/login/articles/73506-checkoway.pdf). Even if an attacker is unable to escape the worker process' container, the service itself can be degraded or disabled.*
+
 ## Quickstart
 
 *This describes a quick-start deployment using the `docker-compose.yaml` file included in the repository, which is the fastest way to get started. More complex deployments can be assembled by modifying the compose file, using the `docker-compose.dev.yaml` file, starting docker images manually, or using kubernetes.  The service can also be installed directly on the OS of a physical or virtual server.*
@@ -26,12 +28,12 @@ This project is a LaTeX compiling and template rendering web service intended to
 
 This software was developed as a lightweight (as lightweight as one can reasonably call something housing a full texlive installation) infrastructure service for automated document generation. It is meant to be simple and reliable, able to be deployed once for an organization or group and provide the rendering of latex files for many other applications without requiring them to each maintain their own LaTeX toolchain.
 
-This project is essentially a small Flask app built on top of [laurenss/texlive-full](https://hub.docker.com/r/laurenss/texlive-full) an ubuntu-based docker image with `texlive-full` installed. 
+This project is essentially a small Flask app built on top of [thomasweise/docker-texlive-full](https://hub.docker.com/r/thomasweise/docker-texlive-full) an ubuntu-based docker image with `texlive-full` installed, plus `ghostscript` and `poppler-utils`, the latter which is used in the pdf to image conversion feature.
 
 Additionally, `jinja2` can be used to render templates to LaTeX files which will then be compiled with other source files, allowing for a slightly more sane scripting environment than plain TeX.  The `jinja2` grammar was slightly altered to be more compatible with LaTeX's quirks in a way that is inspired by, but slightly different from, [this blog post by Brad Erikson](http://eosrei.net/articles/2015/11/latex-templates-python-and-jinja2-generate-pdfs).
 
 ### Why as a service, and why containerized?
-LaTeX, though quite powerful, can be a frustrating toolset to install and maintain, especially across platforms. A comprehensive installation can be several gigabytes in size, and seems to be easily broken.  Online tools like [Overleaf](https://www.overleaf.com) ([source on GitHub](https://github.com/overleaf)) clearly show how much pain can be saved by not maintaining individual installations, but Overleaf itself is structured towards the concepts of users and projects and isn't quite a lightweight service meant to be consumed by other services. 
+LaTeX, though quite powerful, can be a frustrating toolset to install and maintain, especially across platforms. A comprehensive installation can be several gigabytes in size, and seems to be easily broken.  Online tools like [Overleaf](https://www.overleaf.com) ([source on GitHub](https://github.com/overleaf)) show how much pain can be saved by not maintaining individual installations, but Overleaf itself is structured towards the concepts of users and projects and isn't exactly a lightweight service meant to be consumed by other services. 
 
 Deploying a containerized service that houses a `texlive-full` installation and can live on any platform capable of hosting a Docker container takes nearly all of the pain out of managing it.  There's nothing to be broken during upgrades, and no complex setup to be lost when a server dies.  By making this app nearly stateless (it does store information, but only for a few minutes at a time) it is also extremely easy to migrate from host to host and to scale up or down as needed.  It's also easy to upgrade and redeploy.
 
@@ -49,7 +51,9 @@ What I think the benefits of this project over the existing projects are:
 
 3. Use the `jinja2` engine to render `.tex` template files containing `jinja`'s python-like syntax to valid LaTeX, which will then be compiled as part of your project.  Submit the data to render to the template as a `json` dictionary. This is an easier way of producing generated documents for most people than trying to use LaTeX's programming mechanisms directly.
 
-4. Ample documentation and examples to clearly demonstrate
+4. Have the compiled PDF converted to a jpeg, png, or tiff with a simple optional setting
+
+5. Ample documentation and examples to clearly demonstrate
     1. How to set up and deploy the service
     2. How to use the service, with all of its different features
     3. How to develop or extend the project
