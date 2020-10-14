@@ -40,6 +40,22 @@ def compile_latex(session_id: str, working_directory: str, instance_key: str):
     result = _render_and_compile(session.key, session.compiler, session.target, session.source_files.root_path,
                                  session.template_files.root_path)
 
+    # Check that the PDF was rendered as expected, if not return from here
+    if not result.success:
+        session.set_errored(result.log)
+        return result
+
+    # If we need to perform an image conversion, we do it now
+    if session.convert is not None:
+        convert_result = _convert_image_(session.product,
+                                         session.convert["format"],
+                                         session.convert["dpi"])
+        if convert_result:
+            result = RenderResult(success=True, product=convert_result, log=result.log)
+        else:
+            result = RenderResult(success=False, product=None, log=result.log + "\nFailed on conversion to image")
+
+    # Check the overall success or failure and return the result
     if result.success:
         session.set_complete(result.product, result.log)
     else:
@@ -65,6 +81,20 @@ def _render_templates(template_path: str, source_path: str):
 
         with destination_service.open(data['target'], "w") as handle:
             handle.write(rendered_text)
+
+
+def _convert_image_(target: str, format: str, dpi: int) -> str:
+    working_dir, file_name = os.path.split(target)
+    target_base, _ = os.path.splitext(file_name)
+    command = ["pdftoppm", f"-{format}", f"-dpi {dpi}",
+               file_name, target_base]
+
+    process = subprocess.Popen(command, stdout=subprocess.DEVNULL, cwd=working_dir)
+    process.wait()
+    expected_file = os.path.join(working_dir, f"{target_base}.{format}")
+    if os.path.exists(expected_file):
+        return expected_file
+    return None
 
 
 def _render_and_compile(session_id: str, compiler: str, target: str, source_path: str,

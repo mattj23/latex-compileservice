@@ -1,9 +1,9 @@
-FROM laurenss/texlive-full:2019
+FROM thomasweise/docker-texlive-full:1.0
 
 COPY requirements.txt ./requirements.txt
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -qy --no-install-recommends python3 python3-pip poppler-utils && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -qy --no-install-recommends python3 python3-pip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     python3 -m pip install -r requirements.txt && \
