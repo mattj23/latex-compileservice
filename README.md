@@ -2,11 +2,11 @@
 
 A Flask based web service that compiles LaTex projects to document form and uses the Jinja2 engine to render templates and data to .tex files.  Ready to deploy with docker-compose, docker swarm mode, or kubernetes.  Can be installed directly on a server OS with a bit more effort.
 
-*This project is intended for use as an internal service being consumed by trusted clients. TeX is a general purpose programming language and its ability to read and write arbitrary text files through its macro system is [sufficient to allow maliciously crafted tex files to run arbitrary binaries](https://www.usenix.org/system/files/login/articles/73506-checkoway.pdf). Even if an attacker is unable to escape the worker process' container, the service itself can be degraded or disabled.*
+*This project is intended for use as an internal service being consumed by trusted clients. TeX is a general purpose programming language and its ability to read and write arbitrary text files through its macro system is [sufficient to allow maliciously crafted tex files to run arbitrary binaries](https://www.usenix.org/system/files/login/articles/73506-checkoway.pdf). Even if an attacker is unable to escape the worker process' container, the service itself can be degraded or disabled by malicious input data.*
 
 ## Quickstart
 
-*This describes a quick-start deployment using the `docker-compose.yaml` file included in the repository, which is the fastest way to get started. More complex deployments can be assembled by modifying the compose file, using the `docker-compose.dev.yaml` file, starting docker images manually, or using kubernetes.  The service can also be installed directly on the OS of a physical or virtual server.*
+This describes a quick-start deployment using the `docker-compose.yaml` file included in the repository, which is the fastest way to get started. More complex deployments can be assembled by modifying the compose file, using the `docker-compose.dev.yaml` file, starting docker images manually, or using kubernetes.  The service can also be installed directly on the OS of a physical or virtual server.
 
 1. Use `docker-compose` to build and run the app 
     * From the main project directory, `docker-compose up -d --build`
@@ -39,7 +39,7 @@ Deploying a containerized service that houses a `texlive-full` installation and 
 
 In my experience, the additional layer of abstraction induced by containerization is a net benefit, because I have found the additional complexity of Docker to be far less than the complexity of managing LaTeX.  However, a determined user/sysadmin can deploy this service outside of a container by installing the Flask app, the Celery worker, and the Celery scheduler as system services on a physical or virtual machine with a LaTeX toolchain, and pointing them at either a local or network-accessible Redis server.
 
-### What makes this project different?
+### What makes this project different from others?
 
 There are a few projects out there which put LaTeX compilation tools in a Docker image with a web application over them.  The most comprehensive seems to be [vsfexperts/LaTeX](https://github.com/vsfexperts/LaTeX) which unfortunately takes the entire content to be rendered in the POST request, meaning that multiple files (like custom classes, or images) cannot be rendered.  There is also [DMOJ/Texoid](https://github.com/DMOJ/texoid), but it is focused on rendering LaTeX math symbols to graphics formats.  There are an additional handful of similar projects, but most suffer from inadequate documentation or the limitation of using POST to submit a single document to be rendered.
 
@@ -139,11 +139,11 @@ The following are environmental variables which apply settings in the applicatio
 ### Overview of the API
 As seen from the client side, the API offers access to a single main resource: an ephemeral "session".  The session has a "state" attribute, which controls how it can be interacted with and how the service treats it.
 
-Sessions are created by clients who want to compile a set of LaTeX source files into a single document.  The client specifies a compiler and a target, posts a set of source files which may include Jinja2 templates+json objects to be rendered *into* source files. When the session is created, its state will be "editable".  When the client is finished uploading resources to the session it posts a "finalized" flag which triggers a state transition to "finalized" and prevents further alterations to the session.
+Sessions are created by clients who want to compile a set of LaTeX source files into a single document.  The client specifies a compiler and a target, optional settings to convert to an image, posts a set of source files which may include Jinja2 templates+json objects to be rendered *into* source files. When the session is created, its state will be "editable".  When the client is finished uploading resources to the session it posts a "finalized" flag which triggers a state transition to "finalized" and prevents further alterations to the session.
 
 Once the session transitions to "finalized", a background worker will eventually pick it up, after which time it will either be successfully compiled into a document, or the compilation will fail.  The session state will then change to either "success" or "error".
 
-At that point, the session will contain a link to log files, and (if it completed successfully) a product, which the client may download.
+At that point, the session will contain a link to log files, and (if it completed successfully) a product, which the client may download. The product will either be in the form of a PDF or an image file, depending on whether or not the conversion option was set.
 
 The session will only persist for a limited amount of time (set by the server) after creation.  It is the responsibility of the client to check and download the results before the session is removed.
 
@@ -161,6 +161,14 @@ The session endpoint is located at `/api/sessions` and allows for the creation o
 
 Currently, the supported compilers are `pdflatex`, `xelatex`, and `lualatex`.  
 The POST should return a json resource specifying session information, as well as a `Location` header with a URL for the session.
+
+The optional convert-to-image feature can be enabled by including information on the desired format and dpi under the top level key `"convert"`.  This information can also be posted after the session is created. The allowable formats are `"jpeg"`, `"png"`, and `"tiff"`, and DPI must be an integer value between 10 and 10000.  If no conversion information is specified the system will produce a PDF, if conversion information is malformed or invalid the POST will fail with an error, and if the conversion information is successful the final product will be a file of the specified format instead of the PDF.
+
+```json
+{ "target": "example.tex", "compiler": "pdflatex", "convert": {"format": "png", "dpi": 600}}
+```
+
+> Note: image conversions with high DPI or large PDFs may take a long time and run into issues with the session lifespan. Under the hood, `pdftoppm` is used with the `-singlefile` flag, which only converts the first page of the pdf and writes it to a single file. This feature is intended for quick conversions of small page PDFS like labels, stickers, and math equations, and not for converting large documents to an image form.  If you need to convert full LaTeX documents to images it's best to download the PDF and perform the conversion externally.
 
 #### Specific Session Endpoint
 Located at `/api/sessions/<session_key>`, a GET request will return the specific session resource associated with a given session key, including links to completed logs and products, as well as a json form to guide you through the usage of this resource.  A POST request of `{"finalize": true}` will transition the state to "finalized" so that a worker will pick up the session and attempt to compile it.  
@@ -269,9 +277,73 @@ For an example of how to use the API, the file [example_client.py](https://githu
 To run the example client you will need Python 3 and a running instance of the service to point it at.
 
 ## Getting Started: Development
+
 ### The Development Environment
+
+Because there are several parts of a working deployment, and because this repository contains a handful of integration tests, it will be easiest to perform development in an environment which can natively use Docker or docker-compose for debugging and testing.  I used PyCharm, which worked acceptably well with docker integration on both Windows and Linux.
+
+There are currently no automated tests as part of the build pipeline to Docker Hub. I would like to implement this someday when I find the time.
+
 ### Project Structure
+
+The folder structure of this repositiory has several top level directories.
+
+* `deployment/` contains sample configuration files for deploying the service on/from different platforms
+* `latex/` is the core source for the application, including the flask configuration and routes, the code for rendering and compiling, and shared data models
+* `tests/` contains both the `pytest` unit and integration test code, as well as a subfolder containing .tex and image files for testing and for the example client
+
+The top level folder also contains some files for docker and docker-compose including the primary Dockerfile for building the application container, and the python files which serve as entrypoints for the celery processes.
+
 #### The Three Processes
+
+In a deployment there are three different python processes which need to run.
+1. The flask app itself, which is created by the wsgi server (or gunicorn) via the `create_app()` function in `latex/__init__.py`
+2. The celery worker, which is launched with celery on the `worker.py` script. 
+    * The internal plumbing is handled by celery itself, but this process is the one which executes the LaTeX compilers and `pdftoppm` for image conversion
+    * It requires a shared directory with the flask app so that files uploaded to flask are accessible to the worker and its compilers
+3. The celery scheduler, which is launched with celery on the `scheduler.py` script.   
+    * The scheduler is only responsible for scheduling the worker task to clean up expired sessions
+
+In a containerized environment like docker, the `run.sh` script in the root folder is used to deploy the correct process in a container based off of the environmental variable `COMPONENT`.  
+
+### Where to Look For Stuff
+
+This is a quick overview of where to look to find different parts of the project.  If you have some feature or modification in mind, this section may help you figure out where in the codebase to start looking.
+
+#### Flask
+* All flask routes are located in `latex/api_routes.py`.  If you're trying to extend or modify the API, this is where to start.
+* Configuration is in `latex/config.py`, which both declares global configuration variables and sets their defaults.
+
+#### Celery
+* The celery processes are launched through `worker.py` and `scheduler.py` in the root folder, but these are just to set up and start the processes
+* Celery tasks are located in `latex/tasks.py`, which are effectively declarations of what functions are accessible to the workers. They wrap code from other parts of the project, but if you need to add a potential background task at the very least you'll need to declare it here.
+
+#### Session
+The underlying resource for the application is a `Session`, which is in turn managed by `SessionManager`.  Everything related to these two python classes is located in `latex/session.py`.
+
+`Session` stores data about a particular compilation job. It exists to store, display, and enforce the correctness of information relating to the job. One session is created for each job.
+
+`SessionManager` is responsible for creating, persisting, deleting, and retrieving session information to and from the Redis server.  
+
+If you want to modify what the sessions store and contain, start with the `Session` class and also check the `SessionManager`.
+
+For changes to how the sessions are persisted, retrieved, etc, start with the `SessionManager`.
+
+There is one additional construct of note, the `FileService` class which resides in `latex/services/file_service.py` and provides recursive abstraction over file system directories.  Its main purpose is to prevent path escape via symlinks or `../`, and to provide a very minimal abstraction over filesystem operations. If you need to extend or alter how the sessions and other elements interact with the filesystem, you will likely need to to do it here.
+
+#### Rendering/Compilation/Image Conversion
+All code related to the direct rendering of `jinja2` templates, the running of the different LaTeX compilers, and the running of the `pdftoppm` pdf to image converter are contained in `latex/rendering.py`.  These are not directly invoked by the flask app, but rather from the celery worker. 
+
+For changes to compilation, the gathering of logs, working with files, this is a good starting place.
+
+#### Unit and Integration Tests
+
+All tests are located in `tests/`, and are separated by what they test.
+
+* `test_file_service.py` is a set of tests related to the `FileService` class and its encapsulation of the filesystem, be aware that it relies on creating temporary files and folders through the `tempfile` module and so any environment running the tests will need that capability
+* `test_latex_api.py` checks the correctness of the HTTP API, and also relies on the `tempfile` module to verify that the flask app is storing files correctly
+* `test_rendering.py` verifies that compilation actions work, and so both relies on `tempfile` and being in an environment in which has the LaTeX compilers and `pdftoppm` installed, since these are invoked through python's `subprocess` module
+* `test_sessions.py` mostly tests the `SessionManager` class and its ability to persist the sessions to a Redis server, and so needs to have an accessible Redis instance running at `REDIS_URL` in the configuation during the test.  It would be preferable to have this be a disposable instance created exclusively for the tests, because in the case that the test teardown doesn't happen properly there will be data left in the server.
 
 
 
