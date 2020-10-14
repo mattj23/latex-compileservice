@@ -35,7 +35,7 @@ services:
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
       - COMPONENT=worker
-      - CELERY_LOG_LEVEL=info
+      - CELERY_LOG_LEVEL=INFO
     volumes:
       - latex-working:/working
     depends_on:
@@ -51,7 +51,7 @@ services:
       - LANG=C.UTF-8
       - REDIS_URL=redis://:@redis:6379/0
       - COMPONENT=scheduler
-      - CELERY_LOG_LEVEL=info
+      - CELERY_LOG_LEVEL=INFO
       - CLEAR_EXPIRED_INTERVAL_SEC=60
     depends_on:
       - redis

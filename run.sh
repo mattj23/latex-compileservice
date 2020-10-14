@@ -15,7 +15,7 @@ if [[ "$COMPONENT" == "web" ]]; then
 
 elif [[ "$COMPONENT" == "worker" ]]; then
   echo "Setting this container to run a Celery worker"
-  exec celery worker -A worker.celery --loglevel="$CELERY_LOG_LEVEL"
+  exec celery -A worker worker --loglevel="$CELERY_LOG_LEVEL"
 
 elif [[ "$COMPONENT" == "scheduler" ]]; then
   echo "Setting this container to run a Celery beat scheduler"
