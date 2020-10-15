@@ -55,7 +55,7 @@ spec:
             - name: COMPONENT
               value: "worker"
             - name: CELERY_LOG_LEVEL
-              value: "info"
+              value: "INFO"
 
         - name: beat
           image: matthewjarvis/latex-compileservice:latest
@@ -69,7 +69,7 @@ spec:
             - name: COMPONENT
               value: "scheduler"
             - name: CELERY_LOG_LEVEL
-              value: "info"
+              value: "INFO"
             - name: CLEAR_EXPIRED_INTERVAL_SEC
               value: "60"
 

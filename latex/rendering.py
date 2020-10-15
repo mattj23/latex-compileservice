@@ -33,7 +33,7 @@ _latex_env = jinja2.Environment(
 
 
 def compile_latex(session_id: str, working_directory: str, instance_key: str):
-    logging.info("Compilation on session %s", session_id)
+    logging.debug("Starting compilation on session %s", session_id)
     client = redis.from_url(ConfigBase.REDIS_URL)
     manager = SessionManager(client, TimeService(), instance_key, working_directory)
     session = manager.load_session(session_id)
@@ -43,11 +43,14 @@ def compile_latex(session_id: str, working_directory: str, instance_key: str):
     # Check that the PDF was rendered as expected, if not return from here
     if not result.success:
         session.set_errored(result.log)
+        logging.info("Compilation failed on session %s", session_id)
         return result
 
     # If we need to perform an image conversion, we do it now
     if session.convert is not None:
-        convert_result = _convert_image(session.product,
+        logging.info("An image conversion to %s at %i dpi requested on session %s", session.convert["format"],
+                     session.convert["dpi"], session_id)
+        convert_result = _convert_image(result.product,
                                         session.convert["format"],
                                         session.convert["dpi"])
         if convert_result:
@@ -57,8 +60,10 @@ def compile_latex(session_id: str, working_directory: str, instance_key: str):
 
     # Check the overall success or failure and return the result
     if result.success:
+        logging.info("Compilation successful on session %s", session_id)
         session.set_complete(result.product, result.log)
     else:
+        logging.info("Compilation failed on session %s", session_id)
         session.set_errored(result.log)
 
     return result
