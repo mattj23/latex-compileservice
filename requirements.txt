@@ -1,5 +1,5 @@
 setuptools
-Flask==1.1.2
+Flask==2.3.2
 flask-redis==0.4.0
 pytest==6.1.1
 rq==1.5.2
